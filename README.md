@@ -1,8 +1,3 @@
-# quickman
+# QuickMAN - Fast Mandelbrot Generator
 
-For complete documentation, please go to the QuickMAN project webpage and click on the Documentation tab.
-
-http://quickman/sourceforge.net
-
-Thanks,
--PG
+This repository is forked from https://sourceforge.net/projects/quickman/
