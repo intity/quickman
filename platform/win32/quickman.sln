@@ -7,18 +7,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "quickman", "quickman.vcxpro
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
-		Release|x64 = Release|x64
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{FC32B962-6EC2-4206-A2B7-A6AC0EF8E8CC}.Debug|x64.ActiveCfg = Debug|x64
-		{FC32B962-6EC2-4206-A2B7-A6AC0EF8E8CC}.Debug|x64.Build.0 = Debug|x64
 		{FC32B962-6EC2-4206-A2B7-A6AC0EF8E8CC}.Debug|x86.ActiveCfg = Debug|Win32
 		{FC32B962-6EC2-4206-A2B7-A6AC0EF8E8CC}.Debug|x86.Build.0 = Debug|Win32
-		{FC32B962-6EC2-4206-A2B7-A6AC0EF8E8CC}.Release|x64.ActiveCfg = Release|x64
-		{FC32B962-6EC2-4206-A2B7-A6AC0EF8E8CC}.Release|x64.Build.0 = Release|x64
 		{FC32B962-6EC2-4206-A2B7-A6AC0EF8E8CC}.Release|x86.ActiveCfg = Release|Win32
 		{FC32B962-6EC2-4206-A2B7-A6AC0EF8E8CC}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
