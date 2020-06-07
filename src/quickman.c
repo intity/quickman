@@ -4380,7 +4380,7 @@ unsigned int CALLBACK do_save(LPVOID param)
 		ptr3 = ptr4 = s->png_buffer;
 		for (j = 0; j < save_xsize; j++)
 		{
-			*((unsigned char*)ptr3) = *((unsigned char*)ptr4);
+			*((unsigned int*)ptr3) = *((unsigned int*)ptr4);
 			ptr3 += 3;
 			ptr4 += 4;
 		}
