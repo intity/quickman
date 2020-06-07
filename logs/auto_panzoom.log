@@ -1,0 +1,147 @@
+// Test file for some new logfile features. 
+//
+// All commands apply to the next valid mandelbrot entry, and all must
+// be supplied before the palette field of the entry. Most of these
+// settings will retain their values, but zoom and pan will reset to
+// "none" after each entry. 
+
+// Window size changes are ignored in fullscreen mode (it's assumed if the
+// user went there, he wants to stay there). This special "restore code"
+// (ysize 0) is the only exception. It restores the window to its size
+// before fullscreen.
+ysize 0
+
+// Pan: do an auto-pan. The pan value is a bitfield: 1 = left, 2 = right, 4 = up, 8 = down
+pan 4
+
+// Panrate is the GUI pan rate slider setting (in ticks)
+panrate 5
+
+Real     -1.7495737286160626
+Imag     -0.0001099871521976
+Mag      95744500.800000 
+Iters    4096
+Palette  9
+
+// A nice slow cruise over Lake Mandelbrot. Maximize the window.
+pan 10
+panrate 3
+
+// Dark blue for maxiters
+maxiters_color 0x00, 0x00, 0x38
+
+Real     -1.7498822066995738
+Imag     0.0000001438126349
+Mag      1241278739890.013700
+Iters    4096
+Palette  10
+
+// maxiters_color autoresets to black after each image.
+
+// Pan right on this one. 
+pan 2
+panrate 9
+
+Real     -1.7500001739456337
+Imag     0.0000000046537818
+Mag      7435640.047740  
+Iters    4096
+Palette  9
+
+// Do an auto-zoom. Zoom value is 1 for zoom in, 2 (later) for zoom out.
+zoom 1
+
+// Zoomrate is the GUI zoom rate slider setting
+zoomrate 6
+
+// If you have a pan also, it happens after the zoom
+panrate 5
+pan 6
+
+Real     -0.3111503128821521
+Imag     -0.6712143552437314
+Mag      7212377613632.579100
+Iters    200
+Palette  12
+
+pan 1
+panrate 9
+
+// Change image size!
+xsize 1024
+ysize 300
+
+// If you let this go long enough, it will scroll off the shore of the 
+// molecule. Hit ctrl to speed this up.
+
+Real     -1.7497654817632793
+Imag     0.0000000046537818
+Mag      7435640.047740  
+Iters    1024
+Palette  9
+
+// Use this to maximize window
+// #xsize 0
+
+// Use this to restore window
+// #ysize 0 // this has some issues right now
+
+// xsize and ysize now autoreset to quickman.cfg defaults. No need to restore them here. 
+
+pan 1
+panrate 10
+
+// Higher mag- this one will take much longer to scroll off
+
+Real     -1.7497313294506101
+Imag     -0.0000000000001465
+Mag      415366143073.353880
+Iters    1024
+Palette  9
+
+// Nice slow zoom
+zoom 1
+zoomrate 4
+
+Real	   -0.1636969595458488
+Imag	   -1.0977667385446199
+Mag	   110145761843.458880
+Iters    700
+Palette  10
+
+// Extremely computationally intensive landscape cruise
+maxiters_color 220, 255, 255
+pan 6
+panrate 4
+
+Real     -1.7498822066701316
+Imag     0.0000001437700163
+Mag      9930229919120.109400
+Iters    6000
+Palette  10
+
+pan 8
+panrate 6
+//maxiters_color 0, 90, 120
+
+// Really busy landscape
+Real     -1.7496151741909720
+Imag     0.0000014869575385
+Mag      12102450884860.859000
+Iters    7200
+Palette  11
+
+// Abstract earthy lava landscape cruise
+pan 6
+panrate 5
+maxiters_color 0x88, 0x20, 0x0
+
+// xsize 0: go to fullscreen. This works, but can get annoying (another intensive image)
+// xsize 0
+
+Real     -1.0284578034810949
+Imag     0.3614638717896313
+Mag      1595088459891.900400
+Iters    4000
+Palette  5
+

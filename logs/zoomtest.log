@@ -1,0 +1,30 @@
+// Logfile for realtime zoom benchmarks. After the zoom finishes,
+// scroll down in the info window to read the total calc time.
+
+zoom 1
+Real     0.3439489354158453
+Imag     -0.0560718299777773
+Mag      1205309123515.879900
+Iters    200
+Palette  7
+
+zoom 1
+Real     -1.9426311001358991
+Imag     0.0011799970729260
+Mag      2020777695.901309
+Iters    200
+Palette  2
+
+zoom 1
+Real     -0.3111503128821521
+Imag     -0.6712143552437314
+Mag      7212377613632.579100
+Iters    200
+Palette  12
+
+zoom 1
+Real     -1.9999991175872258
+Imag     -0.0000000000002223
+Mag      259510756295.869080
+Iters    1024
+Palette  12

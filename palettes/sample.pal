@@ -1,0 +1,38 @@
+// This sample palette file is meant to show the file format, 
+// not to be nice looking... 
+//
+// Anything following '//' is treated as a comment. 
+//
+// The first entry is the RGB value (typically black) that is used if a point
+// reached Max Iters without diverging. It isn't used for points that diverge. 
+//
+// If 3 numbers (hex or decimal) are given on a line, they are interpreted as 
+// individual 8-bit RGB values, in the order Red, Green, Blue. Numbers can
+// be separated by commas or whitespace. If one number is given on a line, 
+// it is interpreted as a 24-bit RGB triplet (Red in bits 23-16, Green 
+// in bits 15-8, and Blue in bits 7-0).
+
+  0,   0,   0  // Black (Max Iters value)
+
+// The next entry is the RGB value used when the remainder of the iteration 
+// count divided by the palette size is 0. 
+
+255, 255, 255  // White. Possible alternate forms: 0xFFFFFF; 0xFF, 0xFF, 0xFF; 16777215
+
+// Continue adding entries to define the rest of the palette.
+
+255,   0,   0  // Red
+255, 255,   0  // Yellow
+  0, 255,   0  // Green
+  0, 255, 255  // Cyan
+  0,   0, 255  // Blue
+255,   0, 255  // Magenta
+192, 192, 192  // Light gray
+128, 128, 128  // Middle gray 2
+ 64,  64,  64  // Middle gray 1
+ 32,  32,  32  // Dark gray
+ 64,  64,  64  // Middle gray 1
+128, 128, 128  // Middle gray 2
+192, 192, 192  // Light gray
+
+// After the last entry, the palette restarts at the beginning (White). 

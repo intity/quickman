@@ -1,0 +1,209 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,10,0,0
+ PRODUCTVERSION 1,10,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "TODO: <Company name>"
+            VALUE "FileDescription", "QuickMAN SSE/SSE2-based Mandelbrot Set calculator"
+            VALUE "FileVersion", "1.10.0.0"
+            VALUE "InternalName", "quickman.exe"
+            VALUE "LegalCopyright", "Copyright (C) 2006-2008 Paul Gentieu"
+            VALUE "OriginalFilename", "quickman.exe"
+            VALUE "ProductName", "QuickMAN"
+            VALUE "ProductVersion", "1.10.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_MAN_DIALOG DIALOGEX 0, 0, 113, 431
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_CAPTION
+EXSTYLE WS_EX_TOOLWINDOW
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    EDITTEXT        IDC_INFO,4,4,104,59,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_READONLY | NOT WS_BORDER | NOT WS_TABSTOP
+    EDITTEXT        IDC_ITERS,51,73,56,13,ES_AUTOHSCROLL | ES_NUMBER,WS_EX_CLIENTEDGE
+    CONTROL         "",IDC_ADJUST_ITERS,"msctls_updown32",UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,96,73,11,13
+    COMBOBOX        IDC_PALETTE,51,89,56,436,CBS_DROPDOWNLIST | WS_TABSTOP
+    COMBOBOX        IDC_RENDERING,51,105,56,436,CBS_DROPDOWNLIST | WS_TABSTOP
+    COMBOBOX        IDC_PRECISION,51,121,56,39,CBS_DROPDOWNLIST | WS_TABSTOP
+    COMBOBOX        IDC_ALGORITHM,51,137,56,59,CBS_DROPDOWNLIST | WS_TABSTOP
+    COMBOBOX        IDC_THREADS,51,153,56,59,CBS_DROPDOWNLIST | WS_TABSTOP
+    CONTROL         "",IDC_PAN_RATE,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,51,169,56,12
+    CONTROL         "",IDC_ZOOM_RATE,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,51,185,56,12
+    DEFPUSHBUTTON   "Calculate",ID_CALCULATE,5,201,48,12
+    PUSHBUTTON      "Fullscreen",ID_FULLSCREEN,58,201,49,12
+    PUSHBUTTON      "Home",ID_HOME,5,217,48,12
+    PUSHBUTTON      "Zoom",ID_ZOOM,58,217,33,12
+    PUSHBUTTON      " ? ",ID_HELP_BUTTON,95,217,12,12,BS_RIGHT
+    COMBOBOX        IDC_LOGFILE,6,240,101,292,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_NOINTEGRALHEIGHT | WS_TABSTOP,WS_EX_ACCEPTFILES
+    PUSHBUTTON      "Next",ID_LOG_NEXT,6,258,22,12
+    PUSHBUTTON      "Prev",ID_LOG_PREV,31,258,22,12,BS_CENTER
+    PUSHBUTTON      "Log Image",ID_LOG_IMAGE,58,258,49,12
+    EDITTEXT        IDC_SAVEFILE,7,281,99,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_SAVE_XSIZE,33,299,29,12,ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_SAVE_YSIZE,77,299,29,12,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "PNG",IDC_PNG,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_DISABLED | WS_TABSTOP,6,318,27,10
+    PUSHBUTTON      "Save Image",ID_SAVE_IMAGE,58,316,49,12
+    CONTROL         "Mags/Iters",IDC_MAGS,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_DISABLED | WS_TABSTOP,6,331,48,10
+    CONTROL         "Preserve Aspect Ratio",IDC_ASPECT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,6,343,88,10
+    LTEXT           "Max Iters:",IDC_STATIC,5,73,40,12,SS_CENTERIMAGE,WS_EX_RIGHT
+    LTEXT           "Palette:",IDC_PAL_TEXT,5,89,40,12,SS_CENTERIMAGE,WS_EX_RIGHT
+    LTEXT           "Precision:",IDC_STATIC,5,121,40,12,SS_CENTERIMAGE,WS_EX_RIGHT
+    LTEXT           "Algorithm:",IDC_ALGORITHM_TEXT,5,137,40,12,SS_CENTERIMAGE,WS_EX_RIGHT
+    CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,1,68,112,1
+    LTEXT           "1",IDC_STATUS,4,416,55,11,SS_CENTERIMAGE
+    RTEXT           "2",IDC_STATUS2,68,416,36,11,SS_CENTERIMAGE
+    LTEXT           "Threads:",IDC_STATIC,5,153,40,12,SS_CENTERIMAGE,WS_EX_RIGHT
+    LTEXT           "Zoom Rate:",IDC_STATIC,5,185,40,12,SS_CENTERIMAGE,WS_EX_RIGHT
+    LTEXT           "Pan Rate:",IDC_STATIC,5,169,40,12,SS_CENTERIMAGE,WS_EX_RIGHT
+    LTEXT           "Rendering:",IDC_RENDERING_TXT,5,105,39,12,SS_CENTERIMAGE,WS_EX_RIGHT
+    CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,1,234,112,1
+    RTEXT           "Size:",IDC_STATIC,4,301,21,8,SS_CENTERIMAGE
+    CTEXT           "x",IDC_STATIC,66,301,8,8,SS_CENTERIMAGE
+    CONTROL         "",IDC_THUMBNAIL_FRAME,"Static",SS_BLACKFRAME | SS_CENTERIMAGE | NOT WS_VISIBLE,0,362,108,46
+    CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,1,412,112,1
+    CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,1,357,112,1
+    CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,0,275,112,1
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_MAN_DIALOG, DIALOG
+    BEGIN
+        RIGHTMARGIN, 112
+        BOTTOMMARGIN, 430
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Cursor
+//
+
+IDC_MAG                 CURSOR                  "../../resources/mag.cur"
+
+IDC_HAND_CLOSED         CURSOR                  "../../resources/hclosed.cur"
+
+IDC_HAND_OPEN           CURSOR                  "../../resources/hopen.cur"
+
+IDC_RTZOOM              CURSOR                  "../../resources/rtzoom.cur"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_MAN                 ICON                    "../../resources/quickman.ico"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_MAN_DIALOG AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

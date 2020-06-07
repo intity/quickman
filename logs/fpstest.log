@@ -1,0 +1,30 @@
+pan 1
+panrate 10
+
+Real     -1.7497654817632793
+Imag     0.0000000046537818
+Mag      7435640.047740  
+Iters    1024
+Palette  9
+
+pan 1
+panrate 10
+
+Real     -1.7497313294506101
+Imag     -0.0000000000001465
+Mag      415366143073.353880
+Iters    1024
+Palette  9
+
+// This one from auto_panzoom.log is good for testing the effectiveness
+// of the internal auto-switchover to Exact mode.
+
+pan 10
+panrate 2
+maxiters_color 0x00, 0x00, 0x38
+
+Real     -1.7498822066995738
+Imag     0.0000001438126349
+Mag      1241278739890.013700
+Iters    4096
+Palette  10
