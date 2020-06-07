@@ -62,5 +62,13 @@ packages/
 *.vsp
 *.vspx
 
+# Visual C++ cache files
+*.aps
+
 # User-specific files
 *.user
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+build/
