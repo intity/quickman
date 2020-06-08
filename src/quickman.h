@@ -586,7 +586,7 @@ typedef struct {
 	unsigned int max_iters_last;	// last max_iters used in a calculation
 
 	// GUI parameters, latched before the calculation starts
-	int alg;			// algorithm
+	int alg;			// algorithm mode
 	int cur_alg;		// current algorithm (can switch during panning)
 	int precision;		// user-desired precision
 

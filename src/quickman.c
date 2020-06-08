@@ -2317,6 +2317,11 @@ void man_setup(man_calc_struct* m, int xstart, int xend, int ystart, int yend)
 		}
 	}
 
+	if (m->alg & ALG_FAST_C)
+	{
+		queue_init = 0; // must define a default value
+	}
+
 	// Set pointstruct initial values
 	for (i = 0; i < num_threads; i++)
 	{
