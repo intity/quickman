@@ -1132,7 +1132,7 @@ unsigned int get_normalized_color_nolookup(unsigned int iters,
  * New threaded palette mapping function. Called from apply_palette (the 
  * interface to the rest of the code).
  */
-unsigned int __stdcall apply_palette_threaded(pal_work* p)
+unsigned int CALLBACK apply_palette_threaded(pal_work* p)
 {
 	unsigned int iters, prev_iters, prev, iter_ind, pal_xor, max_iters, x, y;
 	unsigned int bmp_line, iter_line, bmp_ind, xsize, ysize, bmp_line_size, n;
@@ -1155,7 +1155,7 @@ unsigned int __stdcall apply_palette_threaded(pal_work* p)
 	bmp_line_size = m->xsize;
 	
 	iter_line_size = m->iter_data_line_size;
-	ralg = m->rendering_alg;
+	ralg = m->rendering;
 	pal_xor = m->pal_xor;
 	max_iters = m->max_iters;
 
@@ -1254,9 +1254,9 @@ unsigned int __stdcall apply_palette_threaded(pal_work* p)
  */
 void apply_palette(man_calc_struct* m, unsigned int* dest, unsigned int* src, 
 	unsigned int xsize, 
-	unsigned int ysize, int num_threads)
+	unsigned int ysize)
 {
-	unsigned n, * pal, i, mod, step, nt, mi_color, palette_num, max_iters;
+	unsigned int n, * pal, i, mod, step, nt, mi_color, palette_num, max_iters;
 	pal_work* p;
 
 	// NUM_PALETTES is the index used for the user palette.
@@ -1307,7 +1307,7 @@ void apply_palette(man_calc_struct* m, unsigned int* dest, unsigned int* src,
 	// some minimum. Otherwise use a single thread, since threading overhead 
 	// would dominate the time.
 
-	nt = num_threads;
+	nt = m->num_threads;
 	if (xsize * ysize < MIN_THREADED_PAL_MAP)
 		nt = 1;
 

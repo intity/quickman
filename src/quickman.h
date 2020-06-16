@@ -29,18 +29,26 @@
  * into this header file.
  */
 
-#define CFG_FILE "quickman.cfg"	// configuration file containing default 
-								// settings
-#define LOG_FILE "quickman.log"	// default log file
+#ifndef _QUICKMAN_H_
+#define _QUICKMAN_H_
 
-// Precision used in calculation
+#define CFG_FILE "quickman.cfg"	// configuration file containing default settings
+#define LOG_FILE "quickman.log"	// default log file
+#define IMG_FILE "image_1"		// default image file name
+#define CFG_SIZE			13	// total number settings from configuration
+
+/**
+ * Precision used in calculation
+ */
 #define PRECISION_AUTO		0	// Automatically determined based on 
 								// magnification
 #define PRECISION_SINGLE	1	// 32-bit float
 #define PRECISION_DOUBLE	2	// 64-bit double
 #define PRECISION_EXTENDED	3	// 80-bit (x87) double or larger
 
-// Available algorithms
+/**
+ * Available algorithms
+ */
 #define ALG_FAST_ASM_AMD	0	// Use the "wave" algorithm to guess pixels
 #define ALG_EXACT_ASM_AMD	1	// Calculate every pixel (no interpolation or 
 								// guessing)
@@ -55,9 +63,11 @@
 #define ALG_INTEL			2	// using Intel alg if this bit set
 #define ALG_C				4	// using C alg if this bit set
 
-// Rendering algorithms
-#define RALG_STANDARD		0	// keep this 0
-#define RALG_NORMALIZED		1
+/**
+ * Rendering algorithms
+ */
+#define REN_STANDARD		0	// rendering algorithm standard (keep this 0)
+#define REN_NORMALIZED		1	// rendering algorithm normalized
 
 #define NUM_ELEM(a)			(sizeof(a) / sizeof(a[0]))
 
@@ -65,22 +75,16 @@
 								// (== 2^this)
 #define MAX_THREADS			(1 << MAX_THREADS_IND)
 
-// Max threads that can be running at once, with save going on in the 
-// background
+/**
+ * Max threads that can be running at once, with save going on in the 
+ * background.
+ */
 #define MAX_QUEUE_THREADS  (MAX_THREADS * 2 + 3)
 
 //#define USE_PERFORMANCE_COUNTER   // See get_timer()
 
 #ifdef _WIN32
-#define _CRT_SECURE_NO_WARNINGS
-#define WIN32_LEAN_AND_MEAN
-#define ALIGNED_(x) __declspec(align(x))
 #include <windows.h>
-#include "..\platform\win32\resource.h"
-
-#pragma comment(linker,"\"/manifestdependency:type='win32' \
-name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
-processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #endif
 
 #include <stdio.h>
@@ -93,7 +97,9 @@ typedef DWORD TIME_UNIT;
 
 #define DEFAULT_PAL		2		// new loud palette
 
-// Home image parameters
+/**
+ * Home image parameters
+ */
 #define MAG_START		0.3
 #define HOME_RE			-0.7
 #define HOME_IM			0.001	// offset y a bit so x axis isn't black on the 
@@ -101,47 +107,57 @@ typedef DWORD TIME_UNIT;
 #define HOME_MAG		1.35
 #define HOME_MAX_ITERS	256
 
-// Navigation modes
-#define MODE_ZOOM			1	// zoom in/out 2x or zoom on rectangle, using 
-								// magnifier
-#define MODE_RTZOOM			2	// realtime zoom in/out
-#define MODE_PAN			3	// pan around the image
+/**
+ * Navigation modes
+ */
+#define NAV_ZOOM	1	// zoom in/out 2x or zoom on rectangle, using magnifier
+#define NAV_RTZOOM	2	// realtime zoom in/out
+#define NAV_PAN		3	// pan around the image
 
-// Bits for do_rtzoom
-#define RTZOOM_IN			1	// zoom in
-#define RTZOOM_OUT			2	// zoom out
-#define RTZOOM_WITH_BUTTON	4	// 1 if zooming with the zoom button, 0 if with 
-								// the mouse
+/**
+ * Bits for do_rtzoom
+ */
+#define RTZOOM_IN	1	// zoom in
+#define RTZOOM_OUT	2	// zoom out
+#define RTZOOM_BTN	4	// 1 if zooming with the zoom button, 
+						// 0 if with the mouse
 
-// Multiply or divide the magnification by this factor when the user
-// zooms using a single click.
+/**
+ * Multiply or divide the magnification by this factor when the user
+ * zooms using a single click.
+ */
 #define MAG_ZOOM_FACTOR		2.0
 #define MAG_MIN				0.02	// minimum magnification
 
-// Magnitude squared must exceed this for a point to be considered diverged.
-// Values smaller than 16 usually give less aesthetically pleasing results. 
-// Maybe make this user-settable.
+/**
+ * Magnitude squared must exceed this for a point to be considered diverged.
+ * Values smaller than 16 usually give less aesthetically pleasing results. 
+ * Maybe make this user-settable.
+ */
 
 #define DIVERGED_THRESH		16.0	// 4.0
 #define DIVERGED_THRESH_SQ	256		// DIVERGED_THRESH squared (integer)
 
-// Integer portion of high word in double, corresponding to threshold above
+/**
+ * Integer portion of high word in double, corresponding to threshold above
+ */
 #define DIV_EXP				0x40300000	// for doubles with 11 bit exponent
 #define DIV_EXP_FLOAT		0x41800000	// for floats with 8 bit exponent
 //#define DIV_EXP			0x40100000	// for 4.0
 
-#define MIN_ITERS			2			// allow to go down to min possible, 
-										// for overhead testing
-#define MAX_ITERS			0x08000000	// keep upper 4 bits free in iter 
-										// array, in case we need them for 
-										// something
+#define MIN_ITERS	2			// allow to go down to min possible, for 
+								// overhead testing
+#define MAX_ITERS	0x08000000	// keep upper 4 bits free in iter array, in 
+								// case we need them for something
 
-#define MIN_SIZE			4	// min image size dimension. Code should work 
+#define MIN_SIZE	4			// min image size dimension. Code should work 
 								// down to 1 x 1
 
 //#define WM_DUMMY	(WM_APP + 100)	// use this form if messages needed
 
-// Status bits
+/**
+ * Status bits
+ */
 #define STAT_NEED_RECALC		1   // 1 if image must be recalculated next 
 									// time, for whatever reason
 #define STAT_RECALC_FOR_PALETTE	2	// 1 if image must be recalculated before a 
@@ -172,13 +188,11 @@ typedef struct {
 /**
  * Structure for quadrants used in panning
  */
-typedef struct
-{
-	int status;		// see below
-	HBITMAP handle;	// handle to the bitmap
+typedef struct {
+	int status;				// see below
+	void* handle;			// handle to the bitmap
 
-	// rectangle coordinates of this quadrant
-	rectangle quad_rect;
+	rectangle quad_rect;	// rectangle coordinates of this quadrant
 
 	// Raw bitmap data. Each 32-bit value is an RGB triplet (in bits 23-0) and 
 	// one 0 byte (in bits 31-24). Faster to access than a 24-bit bitmap.
@@ -205,6 +219,11 @@ typedef struct
  * If set, blit this quadrant's data to the screen
  */
 #define QSTAT_DO_BLIT	1
+
+#define UL 0	// upper left
+#define UR 1	// upper right
+#define LL 2	// lower left
+#define LR 3	// lower right
 
 /* -------------- Structures and variables used in iteration --------------- */
 
@@ -261,7 +280,7 @@ typedef struct {
 	// 904 loop sets ab_in to the point to iterate on 
 	// (ab_in[0] = re, ab_in[1] = im). Others unused. MS also 64-bit aligns 
 	// this
-	double ab_in[2];              
+	double ab_in[2];
 	
 	unsigned int cur_max_iters;	// 920 Max iters to do this loop
 	
@@ -270,7 +289,7 @@ typedef struct {
 	
 	// Pad to make size a multiple of 64. Necessary, otherwise code will crash 
 	// with 2 or more threads due to array misalignment.
-	unsigned int pad[8];          
+	unsigned int pad[8];
 } man_pointstruct;
 
 /**
@@ -411,7 +430,7 @@ typedef struct {
 	// example, bits 7-4 give the number of stripes per thread for two threads, 
 	// 11-8 are for four threads, etc.
 
-	setting stripes_per_thread;
+	setting stripes;
 	
 	// thickness of stripes used in striped_blit
 	setting blit_stripe_thickness;   
@@ -431,22 +450,23 @@ typedef struct {
  */
 #define SPT_DEFAULT  0x234471
 
-// Bits in options bitfield
+/* ---------------------- Bits in options bit-field ------------------------ */
+
 // 1 to recalculate immediately whenever the window is resized, 0 = not
-#define OPT_RECALC_ON_RESIZE		1
+#define OPT_RECALC_ON_RESIZE	1
 
 // 1 if the control dialog should initially be visible after entering 
-// fullscreen mode, 0 if not can always toggle on/off with C key
-#define OPT_DIALOG_IN_FULLSCREEN	2
+// fullscreen mode, 0 if not can always toggle on/off with C key.
+#define OPT_FULLSCREEN			2
 
 // if 1, start with the normalized rendering algorithm (otherwise standard)
-#define OPT_NORMALIZED				4
+#define OPT_NORMALIZED			4
 
 // if 1, start with an exact algorithm (default fast)
-#define OPT_EXACT_ALG				8
+#define OPT_EXACT_ALG			8
 
-// Default for options bitfield
-#define DEF_OPTIONS					(OPT_RECALC_ON_RESIZE)
+// Default for options bit-field
+#define OPT_DEFAULT				(OPT_RECALC_ON_RESIZE)
 
 /**
  * A log entry structure. It can have its own set of settings. The settings 
@@ -466,7 +486,10 @@ typedef struct {
 	settings log_settings;
 } log_entry;
 
-// A stripe for the thread function to calculate. See man_calculate().
+/**
+ * A stripe for the thread function to calculate.
+ * See man_calculate().
+ */
 typedef struct {
 	int xstart;
 	int xend;
@@ -483,8 +506,7 @@ typedef struct {
 /**
  * Thread state structure
  */
-typedef struct
-{
+typedef struct {
 	int thread_num; // thread number
 
 	// pointer to this thread's iterating point structure, from array in 
@@ -495,8 +517,8 @@ typedef struct
 	stripe stripes[MAX_STRIPES];
 	
 	int num_stripes;
-	HANDLE done_event; // event set by thread when calculation is finished
-	void* calc_struct; // pointer to parent man_calc_struct
+	void* done_event;	// event set by thread when calculation is finished
+	void* calc_struct;	// pointer to parent man_calc_struct
 
 	// Nonessential variables (for profiling, load balance testing, etc)
 	unsigned long long total_iters;		// iters value that keeps accumulating 
@@ -539,7 +561,9 @@ typedef struct {
 	int thread_num;
 } pal_work;
 
-// Maximum max_iters for which palette lookup array is used
+/**
+ * Maximum max_iters for which palette lookup array is used.
+ */
 #define PAL_LOOKUP_MAX	32768
 
 /**
@@ -561,15 +585,18 @@ typedef struct {
 	// iterations done per point.
 	unsigned int (*mandel_iterate)(man_pointstruct* ps_ptr);
 
+	// Pointer for man_calculate function
+	double (*man_calculate)(int xstart, int xend, int ystart, int yend);
+
 	// State structures and events for each thread used in the calculation
 	thread_state thread_states[MAX_THREADS];
 	HANDLE thread_done_events[MAX_THREADS];
 
 	// Image size and offset parameters
-	int xsize;			// window width
-	int ysize;			// window height
+	int xsize;
+	int ysize;
 	int min_dimension;	// dimension
-	int image_size;		// image size
+	int img_size;		// image size
 
 	// To reduce the effects of precision loss at high magnifications, panning 
 	// is now tracked as an offset from the re/im point. The former method was 
@@ -586,9 +613,25 @@ typedef struct {
 	unsigned int max_iters_last;	// last max_iters used in a calculation
 
 	// GUI parameters, latched before the calculation starts
-	int alg;			// algorithm mode
-	int cur_alg;		// current algorithm (can switch during panning)
-	int precision;		// user-desired precision
+	int rendering;				// rendering mode
+	int precision;				// precision (user-desired)
+	int algorithm;				// algorithm mode
+	int threads_i;				// number of threads string index
+	int cur_alg;				// current algorithm (can switch during panning)
+	int num_threads;			// total number of calculation threads
+	int num_stripes;			// stripes number per thread
+	int sse_support;			// 1 for SSE, 2 for SSE and SSE2
+	int all_recalculated;		// flag indicating a recalculation of 
+								// the whole image happened
+	int precision_loss;			// 1 if precision loss detected on most recent 
+								// calculation
+	int screen_xpos;
+	int screen_ypos;
+	int status;					// general status bitfield, sstat
+	double iter_time;			// mandelbrot iteration time only
+	double file_tot_time;		// total calculation time since file opened
+	quadrant quad[4];			// The 4 quadrant bitmaps (each of size 
+								// man_xsize x man_ysize)
 
 	// Dynamically allocated arrays
 	double* img_re;		// arrays for holding the RE, IM coordinates
@@ -609,7 +652,7 @@ typedef struct {
 	int mag_data_offs;	// byte offset of mag_data from iter_data. Could be 
 						// negative; must be int
 
-	unsigned char* png_buffer; // buffer for data to write to PNG file
+	unsigned char* png_buffer;		// buffer for data to write to PNG file
 
 	// Palette and rendering related items
 	unsigned int palette;			// current palette to use
@@ -617,20 +660,23 @@ typedef struct {
 	unsigned int pal_xor;			// for inversion (use 0xFFFFFF)
 	unsigned int max_iters_color;	// color of max iters points, from 
 									// logfile/cfgfile
-	int rendering_alg;				// rendering algorithm: standard or 
-									// normalized iteration count
 
 	pal_work pal_work_array[MAX_THREADS]; // work for palette mapping threads
-	HANDLE pal_events[MAX_THREADS];
+	void* pal_events[MAX_THREADS];
 	
 	// palette lookup table; need one extra entry for max_iters
 	unsigned int pal_lookup[PAL_LOOKUP_MAX + 1];
 
 	// Misc items
 	unsigned int flags;	// See below
+
+	// Pointer offsets into bitmap, precalculated from above values
+	int wave_ptr_offs[7][4];
 } man_calc_struct;
 
-// Values for man_calc_struct flags field
+/**
+ * Values for man_calc_struct flags field
+ */
 #define FLAG_IS_SAVE          1 // 1 if this is a saving structure, 0 for 
 								// normal calculation
 #define FLAG_CALC_RE_ARRAY    2 // set to 0 on first row when saving, otherwise 
@@ -643,8 +689,6 @@ typedef struct {
 #define MAG(m, iter_ptr) *((float *) ((char *)iter_ptr + m->mag_data_offs))
 
 /* ------------------------------- Prototypes ------------------------------ */
-
-void do_man_calculate(int recalc_all);
 
 // imagesave.c
 int png_save_start(char* file, int width, int height);
@@ -660,5 +704,27 @@ int load_palette_from_bmp(FILE* fp, man_calc_struct* m);
 int get_palette_rgb_val(int ind, char* str, int length, unsigned int* rgb);
 void apply_palette(man_calc_struct* m, unsigned int* dest, unsigned int* src, 
 	unsigned int xsz, 
-	unsigned int ysz, 
-	int num_threads);
+	unsigned int ysz);
+
+// quickman.c
+void update_re_im(man_calc_struct* m, long long xoffs, long long yoffs);
+void update_re_im_mag(man_calc_struct* m, int zoom_box, int in_outn,
+	int x0, int y0, int x1, int y1);
+void reset_thread_load_counters(man_calc_struct* m);
+void reset_quadrants(man_calc_struct* m);
+void man_init(man_calc_struct* m, int cfg_options_val, unsigned int flags);
+void man_calculate_quadrants(man_calc_struct* m);
+void man_setup(man_calc_struct* m, int xstart, int xend, int ystart, int yend);
+void pan_image(man_calc_struct* m, int offs_x, int offs_y);
+int fast_wave_alg(man_calc_struct* m, man_pointstruct* ps_ptr, stripe* s);
+char* get_image_info(man_calc_struct* m, int update_iters_sec);
+double get_re_im_offs(man_calc_struct* m, long long offs);
+TIME_UNIT get_timer(void);
+double get_seconds_elapsed(TIME_UNIT start_time);
+int alloc_man_mem(man_calc_struct* m, int width, int height);
+void free_man_mem(man_calc_struct* m);
+void set_wave_ptr_offs(man_calc_struct* m);
+void update_iters(man_calc_struct* m, int up, int down);
+void set_home_image(man_calc_struct* m);
+
+#endif /*_QUICKMAN_H_ */

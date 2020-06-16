@@ -113,6 +113,7 @@ start xcopy "$(ProjectDir)quickman.log" ..\..\build\ /y</Command>
   <ItemGroup>
     <ClInclude Include="..\..\src\quickman.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\resources\hclosed.cur" />
@@ -128,6 +129,7 @@ start xcopy "$(ProjectDir)quickman.log" ..\..\build\ /y</Command>
     <ClCompile Include="..\..\src\imagesave.c" />
     <ClCompile Include="..\..\src\palettes.c" />
     <ClCompile Include="..\..\src\quickman.c" />
+    <ClCompile Include="main.c" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\resources\quickman.ico" />
