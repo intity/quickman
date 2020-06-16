@@ -81,19 +81,8 @@
  */
 #define MAX_QUEUE_THREADS  (MAX_THREADS * 2 + 3)
 
-//#define USE_PERFORMANCE_COUNTER   // See get_timer()
-
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 #include <stdio.h>
-
-#ifdef USE_PERFORMANCE_COUNTER
-typedef LARGE_INTEGER TIME_UNIT;
-#else
-typedef DWORD TIME_UNIT;
-#endif
+#include <time.h>
 
 #define DEFAULT_PAL		2		// new loud palette
 
@@ -590,7 +579,7 @@ typedef struct {
 
 	// State structures and events for each thread used in the calculation
 	thread_state thread_states[MAX_THREADS];
-	HANDLE thread_done_events[MAX_THREADS];
+	void* thread_done_events[MAX_THREADS];
 
 	// Image size and offset parameters
 	int xsize;
@@ -613,25 +602,25 @@ typedef struct {
 	unsigned int max_iters_last;	// last max_iters used in a calculation
 
 	// GUI parameters, latched before the calculation starts
-	int rendering;				// rendering mode
-	int precision;				// precision (user-desired)
-	int algorithm;				// algorithm mode
-	int threads_i;				// number of threads string index
-	int cur_alg;				// current algorithm (can switch during panning)
-	int num_threads;			// total number of calculation threads
-	int num_stripes;			// stripes number per thread
-	int sse_support;			// 1 for SSE, 2 for SSE and SSE2
-	int all_recalculated;		// flag indicating a recalculation of 
-								// the whole image happened
-	int precision_loss;			// 1 if precision loss detected on most recent 
-								// calculation
+	int rendering;			// rendering mode
+	int precision;			// precision (user-desired)
+	int algorithm;			// algorithm mode
+	int threads_i;			// number of threads string index
+	int cur_alg;			// current algorithm (can switch during panning)
+	int num_threads;		// total number of calculation threads
+	int num_stripes;		// stripes number per thread
+	int sse_support;		// 1 for SSE, 2 for SSE and SSE2
+	int all_recalculated;	// flag indicating a recalculation of 
+							// the whole image happened
+	int precision_loss;		// 1 if precision loss detected on most recent 
+							// calculation
 	int screen_xpos;
 	int screen_ypos;
-	int status;					// general status bitfield, sstat
-	double iter_time;			// mandelbrot iteration time only
-	double file_tot_time;		// total calculation time since file opened
-	quadrant quad[4];			// The 4 quadrant bitmaps (each of size 
-								// man_xsize x man_ysize)
+	int status;				// general status bitfield, sstat
+	double iter_time;		// mandelbrot iteration time only
+	double calc_time;		// total calculation time since file opened
+	quadrant quad[4];		// The 4 quadrant bitmaps (each of size 
+							// man_xsize x man_ysize)
 
 	// Dynamically allocated arrays
 	double* img_re;		// arrays for holding the RE, IM coordinates
@@ -712,15 +701,14 @@ void update_re_im_mag(man_calc_struct* m, int zoom_box, int in_outn,
 	int x0, int y0, int x1, int y1);
 void reset_thread_load_counters(man_calc_struct* m);
 void reset_quadrants(man_calc_struct* m);
-void man_init(man_calc_struct* m, int cfg_options_val, unsigned int flags);
 void man_calculate_quadrants(man_calc_struct* m);
 void man_setup(man_calc_struct* m, int xstart, int xend, int ystart, int yend);
 void pan_image(man_calc_struct* m, int offs_x, int offs_y);
 int fast_wave_alg(man_calc_struct* m, man_pointstruct* ps_ptr, stripe* s);
 char* get_image_info(man_calc_struct* m, int update_iters_sec);
 double get_re_im_offs(man_calc_struct* m, long long offs);
-TIME_UNIT get_timer(void);
-double get_seconds_elapsed(TIME_UNIT start_time);
+double get_timer(void);
+double get_seconds_elapsed(double start_time);
 int alloc_man_mem(man_calc_struct* m, int width, int height);
 void free_man_mem(man_calc_struct* m);
 void set_wave_ptr_offs(man_calc_struct* m);

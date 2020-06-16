@@ -34,11 +34,11 @@
 
 #define STRICT
 
-#include "quickman.h"
-
+#include <windows.h>
 #include <stdlib.h>
-#include <process.h>
 #include <math.h>
+
+#include "quickman.h"
 
 #define NUM_PALETTES 14
 

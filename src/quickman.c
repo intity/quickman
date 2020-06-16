@@ -61,6 +61,8 @@
 
 #define STRICT
 
+#include <string.h>
+#include <stdlib.h>
 #include <math.h>
 
 #include "quickman.h"
@@ -154,42 +156,25 @@ static const int wave_yoffs[7][4] = {
 /*-------------------------- File/misc functions ----------------------------*/
 
 /**
- * Timer function: returns current time in TIME_UNITs (changed from previous 
- * versions). Can use two different methods based on #define: 
- * QueryPerformanceCounter is more precise, but has a bug when running on 
- * dual-core CPUs. Randomly selects one or the other core to read the number 
- * from, and gets bogus results if it reads the wrong one.
+ * Timer function: returns the current time in real format.
  */
-TIME_UNIT get_timer(void)
+double get_timer(void)
 {
-#ifdef USE_PERFORMANCE_COUNTER
-	TIME_UNIT t;
-	QueryPerformanceCounter(&t);
-	return t;
-#else
-	return timeGetTime();
-#endif
+	struct timespec ts;
+	timespec_get(&ts, TIME_UTC);
+
+	return ts.tv_sec + ts.tv_nsec * 1e-9;
 }
 
 /**
  * Get the number of seconds elapsed since start_time.
  */
-double get_seconds_elapsed(TIME_UNIT start_time)
+double get_seconds_elapsed(double start_time)
 {
-	TIME_UNIT t;
-#ifdef USE_PERFORMANCE_COUNTER
-	QueryPerformanceFrequency(&f);
-	QueryPerformanceCounter(&t);
-	t.QuadPart -= start_time.QuadPart;
-	if (f.QuadPart)
-		return (double)t.QuadPart / (double)f.QuadPart;
-	return 1e10;
-#else
-	// Need to use TIME_UNIT (dword) to avoid wrapping issues with timeGetTime().
-	// Can subtract in DWORD domain, but not double.
-	t = timeGetTime() - start_time;
-	return 1e-3 * (double)t;
-#endif
+	struct timespec ts;
+	timespec_get(&ts, TIME_UTC);
+
+	return (ts.tv_sec + ts.tv_nsec * 1e-9) - start_time;
 }
 
 /**
@@ -1959,64 +1944,17 @@ char* get_image_info(man_calc_struct* m, int update_iters_sec)
 	// perfect thread load balancing.
 	sprintf_s(tmp, sizeof(tmp),
 		"Efficiency %%\t%#3.3g   %#3.3g\r\n"
-		"\r\nTotal calc time\t%-.3lfs\r\n" // resets whenever new file is opened
+		"\r\nTotal calc time:\t%-.3lfs\r\n" // resets whenever new file is opened
 		"\r\n(C) 2006-2008 Paul Gentieu",
 		100.0 * 100.0 / (m->num_threads * max_cur_pct),
 		100.0 * 100.0 / (m->num_threads * max_tot_pct),
-		m->file_tot_time);
+		m->calc_time);
 	strcat_s(s, sizeof(s), tmp);
 
 	return s;
 }
 
 /* -------------------------- GUI/misc functions --------------------------- */
-
-/**
- * Initialize values that never change. Call once at the beginning of the 
- * program.
- */
-void man_init(man_calc_struct* m, int cfg_options_val, unsigned int flags)
-{
-	int i;
-	HANDLE e;
-	man_pointstruct* ps_ptr;
-
-	// Initialize the calculation structure
-	m->flags			= flags;
-	m->palette			= DEFAULT_PAL;
-	m->rendering		= cfg_options_val & OPT_NORMALIZED
-		? REN_NORMALIZED 
-		: REN_STANDARD;
-	m->precision		= PRECISION_AUTO;
-	m->mag				= HOME_MAG;
-	m->max_iters		= HOME_MAX_ITERS;
-
-	// Initialize the thread state structures
-	for (i = 0; i < MAX_THREADS; i++)
-	{
-		m->thread_states[i].thread_num = i;
-		m->thread_states[i].calc_struct = m;
-
-		// Create an auto-reset done event for each thread. 
-		// The thread sets it when done with a calculation.
-		e = CreateEvent(NULL, FALSE, FALSE, NULL);
-		m->thread_states[i].done_event = e;
-		m->thread_done_events[i] = e;
-
-		// Init each thread's point structure
-		m->thread_states[i].ps_ptr = ps_ptr = &m->pointstruct_array[i];
-
-		// Init 64-bit double and 32-bit float fields with divergence 
-		// radius and constant 2.0
-		ps_ptr->two_d[1] = ps_ptr->two_d[0] = 2.0;
-		ps_ptr->two_f[3] = ps_ptr->two_f[2] = ps_ptr->two_f[1] = 
-		ps_ptr->two_f[0] = 2.0;
-
-		ps_ptr->rad_d[1] = ps_ptr->rad_d[0] = DIVERGED_THRESH;
-		ps_ptr->rad_f[3] = ps_ptr->rad_f[2] = ps_ptr->rad_f[1] = 
-		ps_ptr->rad_f[0] = DIVERGED_THRESH;
-	}
-}
 
 /**
  * Allocate all the memory needed by the calculation engine. This needs to be 

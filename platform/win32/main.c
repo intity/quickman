@@ -122,7 +122,7 @@ char* file_strs[] = { log_file, "auto_panzoom.log" };
 /**
  * For zoom button benchmarking (helps measure overhead).
  */
-static TIME_UNIT zoom_start_time;
+static double zoom_start_time;
 
 static double total_time			= 0.0;	// total pan/zoom time
 static double interval_time			= 0.0;	// pan/zoom time during 1 interval
@@ -533,7 +533,7 @@ int log_read(char* file, char* msg, int init_pos)
 	if (init_pos)
 	{
 		log_pos = -1;
-		m->file_tot_time = 0.0; // for benchmarking
+		m->calc_time = 0.0; // for benchmarking
 	}
 
 	// Kind of inefficient: scan once to get length, then scan again to fill in 
@@ -1019,7 +1019,7 @@ void get_mouse_re_im(int mx, int my)
 int do_panning()
 {
 	int xstep = 0, ystep = 0;
-	static TIME_UNIT start_time;
+	static double start_time;
 	static double pan_time = -1.0;
 	man_calc_struct* m = &main_man_calc_struct;
 
@@ -1080,7 +1080,7 @@ int do_panning()
  */
 int do_zooming()
 {
-	TIME_UNIT start_time;
+	double start_time;
 	int mx, my, done = 0;
 	double step;
 	man_calc_struct* m = &main_man_calc_struct;
@@ -1162,7 +1162,7 @@ int do_zooming()
 		do_rtzoom = 0;
 		
 		// use for benchmarking
-		m->file_tot_time = get_seconds_elapsed(zoom_start_time);
+		m->calc_time = get_seconds_elapsed(zoom_start_time);
 
 		// Update all info
 		SetWindowText(hwnd_info, get_image_info(m, 1));
@@ -1344,8 +1344,7 @@ unsigned int CALLBACK man_calculate_threaded(LPVOID param)
  */
 static double man_calculate(int xstart, int xend, int ystart, int yend)
 {
-	TIME_UNIT start_time;
-	double iteration_time;
+	double start_time;
 	int i, xsize, ysize, step, thread_ind, stripe_ind, num_stripes, frac;
 	int frac_step, this_step;
 	stripe* s = NULL;
@@ -1540,9 +1539,8 @@ static double man_calculate(int xstart, int xend, int ystart, int yend)
 
 	if (!(m->flags & FLAG_IS_SAVE)) // don't update these if doing save
 	{
-		iteration_time = get_seconds_elapsed(start_time);
-		m->file_tot_time += iteration_time;
-		return iteration_time;
+		m->calc_time += get_seconds_elapsed(start_time);
+		return m->calc_time;
 	}
 	else
 		return 0.0;
@@ -2273,7 +2271,7 @@ unsigned int CALLBACK do_save(LPVOID param)
 	unsigned char* ptr3, * ptr4, c[256];
 	FILE* fp;
 
-	TIME_UNIT start_time, t;
+	double start_time, t;
 	man_calc_struct* m, * s;
 
 	m = &main_man_calc_struct;
@@ -2583,7 +2581,60 @@ void fancy_intro()
 
 	print_status_line(0);
 
-	m->file_tot_time = 0.0; // don't count intro time in file total time
+	m->calc_time = 0.0; // don't count intro time in file total time
+}
+
+/**
+ * Initialize values that never change. Call once at the beginning of the
+ * program.
+ */
+void man_init(void)
+{
+	int i, j;
+	void* e;
+	man_pointstruct* ps_ptr;
+	man_calc_struct* m;
+
+	// Initialize the calculation structure
+	for (j = 0; j < 2; j++)
+	{
+		m = j ? &save_man_calc_struct : &main_man_calc_struct;
+
+		m->flags = j ? FLAG_IS_SAVE | FLAG_CALC_RE_ARRAY : FLAG_CALC_RE_ARRAY;
+		m->palette = DEFAULT_PAL;
+		m->rendering = cfg.options.c_val & OPT_NORMALIZED
+			? REN_NORMALIZED
+			: REN_STANDARD;
+		m->precision = PRECISION_AUTO;
+		m->mag = HOME_MAG;
+		m->max_iters = HOME_MAX_ITERS;
+
+		// Initialize the thread state structures
+		for (i = 0; i < MAX_THREADS; i++)
+		{
+			m->thread_states[i].thread_num = i;
+			m->thread_states[i].calc_struct = m;
+
+			// Create an auto-reset done event for each thread. 
+			// The thread sets it when done with a calculation.
+			e = CreateEvent(NULL, FALSE, FALSE, NULL);
+			m->thread_states[i].done_event = e;
+			m->thread_done_events[i] = e;
+
+			// Init each thread's point structure
+			m->thread_states[i].ps_ptr = ps_ptr = &m->pointstruct_array[i];
+
+			// Init 64-bit double and 32-bit float fields with divergence 
+			// radius and constant 2.0
+			ps_ptr->two_d[1] = ps_ptr->two_d[0] = 2.0;
+			ps_ptr->two_f[3] = ps_ptr->two_f[2] = ps_ptr->two_f[1] =
+				ps_ptr->two_f[0] = 2.0;
+
+			ps_ptr->rad_d[1] = ps_ptr->rad_d[0] = DIVERGED_THRESH;
+			ps_ptr->rad_f[3] = ps_ptr->rad_f[2] = ps_ptr->rad_f[1] =
+				ps_ptr->rad_f[0] = DIVERGED_THRESH;
+		}
+	}
 }
 
 /**
@@ -3626,8 +3677,8 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow)
 	read_cfg_file();
 	get_cpu_info();
 	get_system_metrics();
-	man_init(m, cfg.options.c_val, FLAG_CALC_RE_ARRAY);
-	man_init(s, cfg.options.c_val, FLAG_CALC_RE_ARRAY | FLAG_IS_SAVE);
+	man_init();
+
 	if (!(num_palettes = init_palettes(DIVERGED_THRESH, m, s)))
 		return 0;
 

@@ -30,10 +30,11 @@
 
 #define STRICT
 
-#include "quickman.h"
-
+#include <windows.h>
 #include <png.h>
 #include <setjmp.h>
+
+#include "quickman.h"
 
 /* ------------------------------ PNG functions ---------------------------- */
 
