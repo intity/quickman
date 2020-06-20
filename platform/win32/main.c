@@ -3729,13 +3729,6 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow)
 	// Pentium 4 systems
 	InitCommonControls();
 
-#ifndef USE_PERFORMANCE_COUNTER
-	// Set timer resolution to 1ms (if supported). Seems to take awhile to take 
-	// effect. timegettime() will return inaccurate results if it's called too 
-	// soon after this...
-	timeBeginPeriod(1); // fancy_intro will absorb initialization time
-#endif
-
 	UpdateWindow(hwnd_main);
 	update_dialog(1, 1);          // 1 = hide, 1 = move
 	ShowWindow(hwnd_main, nShow); // causes dialog to become visible
@@ -3773,10 +3766,6 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow)
 			}
 		}
 	}
-
-#ifndef USE_PERFORMANCE_COUNTER
-	timeEndPeriod(1);
-#endif
 
 	free_man_mem(&main_man_calc_struct);
 	free_man_mem(&save_man_calc_struct);
