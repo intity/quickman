@@ -1647,7 +1647,7 @@ void man_calculate_quadrants(man_calc_struct* m)
 					iters_ptr = m->iter_data + y * m->iter_data_line_size + x;
 
 					// Xsize, ysize = rectangle edge lengths
-					apply_palette(m, bmp_ptr, iters_ptr, 
+					m->apply_palette(bmp_ptr, iters_ptr, 
 						r.x[1] - r.x[0] + 1, 
 						r.y[1] - r.y[0] + 1);
 				}

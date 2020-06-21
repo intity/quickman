@@ -34,13 +34,10 @@
 
 #define STRICT
 
-#include <windows.h>
 #include <stdlib.h>
 #include <math.h>
 
 #include "quickman.h"
-
-#define NUM_PALETTES 14
 
 /**
  * Pallete: Monochrome
@@ -667,7 +664,6 @@ static palette palettes[NUM_PALETTES + 1] = {
 #define USER_PALETTE_SIZE  16384
 
 static unsigned int cur_user_palette_size = USER_PALETTE_SIZE;
-static unsigned int num_valid_palettes;
 
 /**
  * Skip any leading whitespace and look for a valid number (decimal or hex). If 
@@ -808,7 +804,7 @@ int load_palette(FILE* fp, man_calc_struct* m)
 
 	// Set user palette to invalid by default (if valid, num_valid_palettes 
 	// will be set to NUM_PALETTES + 1)
-	num_valid_palettes = NUM_PALETTES;
+	m->num_valid_palettes = NUM_PALETTES;
 
 	while (1)
 	{
@@ -847,47 +843,16 @@ int load_palette(FILE* fp, man_calc_struct* m)
 		// calc struct. Save function will reset this value for its own 
 		// structure.
 		m->prev_pal = 0xFFFFFFFF;
-		num_valid_palettes = NUM_PALETTES + 1;
+		m->num_valid_palettes = NUM_PALETTES + 1;
 		palettes[NUM_PALETTES].size = n;
 		return NUM_PALETTES;   // succesfully loaded palette
 	}
 	return 0;
 }
 
-#define MAX_PALETTE_SIZE 0x400000 // See below; 4 million should be enough
-
-/**
- * Create a palette from a BMP file. Cool...
- *
- * Only the last horizontal line of the BMP is used. Thus the palette size is 
- * the width of the BMP image. Uses the same user palette array that's used for 
- * text palettes.
- */
-int load_palette_from_bmp(FILE* fp, man_calc_struct* m)
+int load_palette_from_array(FILE* fp, man_calc_struct* m, unsigned int n)
 {
-	BITMAPFILEHEADER head;
-	BITMAPINFOHEADER info;
-	unsigned int i, n;
-
-	// Set user palette to invalid by default (if valid, num_valid_palettes 
-	// will be NUM_PALETTES + 1)
-	num_valid_palettes = NUM_PALETTES;
-
-	// Make sure we read good header and info structures and can seek to the 
-	// start of the bitmap data (l->r evaluation order guaranteed). Must have 
-	// signature "BM" and be an uncompressed 24-bit bitmap.
-
-	if (!fread(&head, sizeof(head), 1, fp) || head.bfType != 0x4D42 || // "BM"
-		!fread(&info, sizeof(info), 1, fp) || info.biSize != sizeof(info) ||
-		info.biPlanes != 1 || info.biCompression != BI_RGB || 
-		info.biBitCount != 24 ||
-		fseek(fp, head.bfOffBits, SEEK_SET))
-		return 0;
-
-	// Read in WIDTH 24-bit values. Limit any insane palette sizes from 
-	// corrupted files
-	if ((n = info.biWidth) > MAX_PALETTE_SIZE)
-		return 0;
+	unsigned int i;
 
 	// If palette is too big to fit in the array, need to reallocate and start 
 	// over.
@@ -909,8 +874,8 @@ int load_palette_from_bmp(FILE* fp, man_calc_struct* m)
 
 		// tell apply_palette that user palette changed
 		m->prev_pal = 0xFFFFFFFF;
-		
-		num_valid_palettes = NUM_PALETTES + 1;
+
+		m->num_valid_palettes = NUM_PALETTES + 1;
 		palettes[NUM_PALETTES].size = n;
 
 #ifdef DUMP_USER_PAL
@@ -942,12 +907,12 @@ typedef unsigned int INTERP_TABLE_ENTRY; // zoomtest 25.7s
 
 static INTERP_TABLE_ENTRY interp_table[(int)(DIVERGED_THRESH_SQ * MAGSQ_SCALE_FACTOR)];
 
-// Minimum number of pixels to be mapped for which multithreading is used
-#define MIN_THREADED_PAL_MAP 200000
+/**
+ * Minimum number of pixels to be mapped for which multithreading is used
+ */
+#define MIN_THREADED_PAL_MAP	200000
 
-int init_palettes(double diverged_thresh, 
-	man_calc_struct* m, 
-	man_calc_struct* s)
+int init_palettes(man_calc_struct* m, double diverged_thresh)
 {
 	double pal_k1, pal_k2, scale;
 	int i;
@@ -982,12 +947,7 @@ int init_palettes(double diverged_thresh,
 		interp_table[i] = (INTERP_TABLE_ENTRY)(scale * 256.0 + 0.49);
 	}
 
-	for (i = 1; i < MAX_THREADS; i++) // 0 is the master thread
-		if ((m->pal_events[i] = CreateEvent(NULL, FALSE, FALSE, NULL)) == NULL ||
-			(s->pal_events[i] = CreateEvent(NULL, FALSE, FALSE, NULL)) == NULL)
-			return 0;
-
-	return num_valid_palettes = NUM_PALETTES;
+	return m->num_valid_palettes = NUM_PALETTES;
 }
 
 /**
@@ -1128,11 +1088,7 @@ unsigned int get_normalized_color_nolookup(unsigned int iters,
 	return ((r & 0xFF000000) | (g & 0x00FF0000) | b) >> 8;
 }
 
-/**
- * New threaded palette mapping function. Called from apply_palette (the 
- * interface to the rest of the code).
- */
-unsigned int CALLBACK apply_palette_threaded(pal_work* p)
+void calc_palette_for_thread(pal_work* p)
 {
 	unsigned int iters, prev_iters, prev, iter_ind, pal_xor, max_iters, x, y;
 	unsigned int bmp_line, iter_line, bmp_ind, xsize, ysize, bmp_line_size, n;
@@ -1225,11 +1181,6 @@ unsigned int CALLBACK apply_palette_threaded(pal_work* p)
 			iter_line += iter_line_size;
 		}
 	}
-	// Tell the master thread we're done. Thread 0 is the master thread, so 
-	// doesn't need to signal
-	if (p->thread_num > 0)
-		SetEvent(m->pal_events[p->thread_num]);
-	return 0;
 }
 
 /**
@@ -1252,7 +1203,7 @@ unsigned int CALLBACK apply_palette_threaded(pal_work* p)
  * New algorithm (direct lookup, max_iters < PAL_LOOKUP_MAX):
  * 9ms (all images)
  */
-void apply_palette(man_calc_struct* m, unsigned int* dest, unsigned int* src, 
+int calc_palette(man_calc_struct* m, unsigned int* dest, unsigned int* src, 
 	unsigned int xsize, 
 	unsigned int ysize)
 {
@@ -1265,11 +1216,11 @@ void apply_palette(man_calc_struct* m, unsigned int* dest, unsigned int* src,
 
 	// num_valid_palettes is NUM_PALETTES if a user palette hasn't been loaded, 
 	// else NUM_PALETTES + 1.
-	if (palette_num > num_valid_palettes - 1)
-		palette_num = num_valid_palettes - 1;
+	if (palette_num > m->num_valid_palettes - 1)
+		palette_num = m->num_valid_palettes - 1;
 
 	pal = palettes[palette_num].rgb;
-	n = palettes[palette_num].size - 1;
+	n   = palettes[palette_num].size - 1;
 
 	// Max iters color logic: any nonzero value (from either the palette or a 
 	// logfile/quickman.cfg) overrides a zero value. If both are nonzero, the 
@@ -1284,6 +1235,7 @@ void apply_palette(man_calc_struct* m, unsigned int* dest, unsigned int* src,
 		mi_color = pal[0] ^ m->pal_xor;
 
 	max_iters = m->max_iters;
+
 	// Make a new color lookup table if max iters is small enough, and palette 
 	// or max iters changed
 	if (max_iters <= PAL_LOOKUP_MAX)
@@ -1334,15 +1286,5 @@ void apply_palette(man_calc_struct* m, unsigned int* dest, unsigned int* src,
 		p++;
 	}
 
-	// If more than one thread, spawn new threads
-	for (i = 1; i < nt; i++)
-		QueueUserWorkItem(apply_palette_threaded, &m->pal_work_array[i],
-			WT_EXECUTELONGFUNCTION | (MAX_QUEUE_THREADS << 16));
-
-	// Do some (or all) of the work here in the master thread
-	apply_palette_threaded(&m->pal_work_array[0]);
-
-	// Wait till all threads are done
-	if (nt > 1)
-		WaitForMultipleObjects(nt - 1, &m->pal_events[1], TRUE, INFINITE);
+	return nt;
 }

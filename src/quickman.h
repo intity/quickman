@@ -553,7 +553,11 @@ typedef struct {
 /**
  * Maximum max_iters for which palette lookup array is used.
  */
-#define PAL_LOOKUP_MAX	32768
+#define PAL_LOOKUP_MAX		32768
+
+#define NUM_PALETTES		14
+
+#define MAX_PALETTE_SIZE	0x400000 // See below; 4 million should be enough
 
 /**
  * Structure for holding all the parameters, sub-structures, and memory 
@@ -649,6 +653,12 @@ typedef struct {
 	unsigned int pal_xor;			// for inversion (use 0xFFFFFF)
 	unsigned int max_iters_color;	// color of max iters points, from 
 									// logfile/cfgfile
+	unsigned int num_valid_palettes;
+
+	// Pointer for apply_palette function
+	void (*apply_palette)(unsigned int* dest, unsigned int* src, 
+		unsigned int xsize, 
+		unsigned int ysize);
 
 	pal_work pal_work_array[MAX_THREADS]; // work for palette mapping threads
 	void* pal_events[MAX_THREADS];
@@ -685,15 +695,14 @@ int png_save_write_row(unsigned char* row);
 int png_save_end(void);
 
 // palettes.c
-int init_palettes(double diverged_thresh, 
-	man_calc_struct* m, 
-	man_calc_struct* s);
+int init_palettes(man_calc_struct* m, double diverged_thresh);
 int load_palette(FILE* fp, man_calc_struct* m);
-int load_palette_from_bmp(FILE* fp, man_calc_struct* m);
+int load_palette_from_array(FILE* fp, man_calc_struct* m, unsigned int n);
 int get_palette_rgb_val(int ind, char* str, int length, unsigned int* rgb);
-void apply_palette(man_calc_struct* m, unsigned int* dest, unsigned int* src, 
+int calc_palette(man_calc_struct* m, unsigned int* dest, unsigned int* src, 
 	unsigned int xsz, 
 	unsigned int ysz);
+void calc_palette_for_thread(pal_work* p);
 
 // quickman.c
 void update_re_im(man_calc_struct* m, long long xoffs, long long yoffs);

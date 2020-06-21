@@ -1546,6 +1546,86 @@ static double man_calculate(int xstart, int xend, int ystart, int yend)
 		return 0.0;
 }
 
+/* --------------------------- Palette functions --------------------------- */
+
+/**
+ * Create a palette from a BMP file. Cool...
+ *
+ * Only the last horizontal line of the BMP is used. Thus the palette size is
+ * the width of the BMP image. Uses the same user palette array that's used for
+ * text palettes.
+ */
+int load_palette_from_bmp(FILE* fp, man_calc_struct* m)
+{
+	BITMAPFILEHEADER head;
+	BITMAPINFOHEADER info;
+	unsigned int n;
+
+	// Set user palette to invalid by default (if valid, num_valid_palettes 
+	// will be NUM_PALETTES + 1)
+	m->num_valid_palettes = NUM_PALETTES;
+
+	// Make sure we read good header and info structures and can seek to the 
+	// start of the bitmap data (l->r evaluation order guaranteed). Must have 
+	// signature "BM" and be an uncompressed 24-bit bitmap.
+
+	if (!fread(&head, sizeof(head), 1, fp) || head.bfType != 0x4D42 || // "BM"
+		!fread(&info, sizeof(info), 1, fp) || info.biSize != sizeof(info) ||
+		info.biPlanes != 1 || 
+		info.biCompression != BI_RGB ||
+		info.biBitCount != 24 ||
+		fseek(fp, head.bfOffBits, SEEK_SET))
+		return 0;
+
+	// Read in WIDTH 24-bit values. Limit any insane palette sizes from 
+	// corrupted files
+	if ((n = info.biWidth) > MAX_PALETTE_SIZE)
+		return 0;
+
+	return load_palette_from_array(fp, m, n);
+}
+
+/**
+ * New threaded palette mapping function. Called from apply_palette (the 
+ * interface to the rest of the code).
+ */
+unsigned int CALLBACK apply_palette_threaded(pal_work* p)
+{
+	man_calc_struct* m = (man_calc_struct*)p->calc_struct;
+
+	calc_palette_for_thread(p);
+
+	// Tell the master thread we're done. Thread 0 is the master thread, so 
+	// doesn't need to signal
+	if (p->thread_num > 0)
+		SetEvent(m->pal_events[p->thread_num]);
+	return 0;
+}
+
+void apply_palette(unsigned int* dest, unsigned int* src,
+	unsigned int xsize,
+	unsigned int ysize)
+{
+	unsigned int i, nt;
+	man_calc_struct* m;
+
+	m = img_save ? &save_man_calc_struct : &main_man_calc_struct;
+
+	nt = calc_palette(m, dest, src, xsize, ysize);
+
+	// If more than one thread, spawn new threads
+	for (i = 1; i < nt; i++)
+		QueueUserWorkItem(apply_palette_threaded, &m->pal_work_array[i],
+			WT_EXECUTELONGFUNCTION | (MAX_QUEUE_THREADS << 16));
+
+	// Do some (or all) of the work here in the master thread
+	apply_palette_threaded(&m->pal_work_array[0]);
+
+	// Wait till all threads are done
+	if (nt > 1)
+		WaitForMultipleObjects(nt - 1, &m->pal_events[1], TRUE, INFINITE);
+}
+
 /* -------------------------- GUI/misc functions --------------------------- */
 
 /**
@@ -2368,7 +2448,7 @@ unsigned int CALLBACK do_save(LPVOID param)
 
 		// Palette-map the iteration counts to RGB data in png_buffer. 
 		// Magnitudes are also available here.
-		apply_palette(s, (unsigned int*)s->png_buffer, s->iter_data,
+		apply_palette((unsigned int*)s->png_buffer, s->iter_data,
 			save_xsize, 1);
 
 		// Convert the 4 bytes-per-pixel data in png_buffer to 3 bpp, as 
@@ -2898,7 +2978,7 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				}
 
 				// Apply palette to the whole image (in UL quadrant here)
-				apply_palette(m, m->quad[UL].bitmap_data,
+				apply_palette(m->quad[UL].bitmap_data,
 					m->iter_data,
 					m->xsize,
 					m->ysize);
@@ -3661,6 +3741,7 @@ MainWndProc(HWND hwnd, UINT nMsg, WPARAM wParam, LPARAM lParam)
 int CALLBACK
 WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow)
 {
+	int i;
 	MSG msg;
 	WNDCLASSEX wndclass;
 	static char* classname = "ManWin";
@@ -3669,6 +3750,9 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow)
 
 	m->man_calculate = &man_calculate;
 	s->man_calculate = &man_calculate;
+
+	m->apply_palette = &apply_palette;
+	s->apply_palette = &apply_palette;
 
 	hinstance = hInst;
 
@@ -3679,7 +3763,16 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow)
 	get_system_metrics();
 	man_init();
 
-	if (!(num_palettes = init_palettes(DIVERGED_THRESH, m, s)))
+	for (i = 1; i < MAX_THREADS; i++) // 0 is the master thread
+	{
+		m->pal_events[i] = CreateEvent(NULL, FALSE, FALSE, NULL);
+		s->pal_events[i] = CreateEvent(NULL, FALSE, FALSE, NULL);
+
+		if (m->pal_events[i] == NULL || s->pal_events[i] == NULL)
+			return 0;
+	}
+
+	if (!(num_palettes = init_palettes(m, DIVERGED_THRESH)))
 		return 0;
 
 	// create a window class for our main window
