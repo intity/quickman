@@ -2334,6 +2334,15 @@ void resize_window()
 		toggle_fullscreen(); // If in fullscreen mode: only allow restore
 }
 
+void png_error_msg(void)
+{
+	MessageBox(NULL,
+		"The PNG library returned an error. Possible causes:\n\n"
+		"1. The image you are trying to save may be too large.\n"
+		"2. The filename for the image is invalid.",
+		NULL, MB_OK | MB_ICONSTOP | MB_TASKMODAL);
+}
+
 /**
  * Save the image in one or more formats: PNG image, pixel iteration counts
  * (32 bit unsigneds), and/or pixel final magnitudes (32-bit floats). Only the
@@ -2427,6 +2436,7 @@ unsigned int CALLBACK do_save(LPVOID param)
 	if (!png_save_start(img_file, save_xsize, save_ysize))
 	{
 		m->status &= ~STAT_DOING_SAVE;
+		png_error_msg();
 		return 0;
 	}
 
@@ -2460,9 +2470,13 @@ unsigned int CALLBACK do_save(LPVOID param)
 			ptr3 += 3;
 			ptr4 += 4;
 		}
+
 		// write the row
 		if (!png_save_write_row(s->png_buffer))
+		{
+			png_error_msg();
 			break;
+		}
 
 		s->pan_yoffs++; // go to next row
 
@@ -2476,7 +2490,8 @@ unsigned int CALLBACK do_save(LPVOID param)
 		}
 	}
 
-	png_save_end();
+	if (!png_save_end())
+		png_error_msg();
 
 	sprintf_s(c, sizeof(c), "Saved in %.1fs", get_seconds_elapsed(start_time));
 	SetWindowText(hwnd_status, c);

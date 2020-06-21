@@ -30,7 +30,6 @@
 
 #define STRICT
 
-#include <windows.h>
 #include <png.h>
 #include <setjmp.h>
 
@@ -42,40 +41,39 @@ static png_structp png;
 static png_infop pnginfo;
 static FILE* png_fp;
 
-int png_error2(void)
-{
-	MessageBox(NULL, 
-		"The PNG library returned an error. Possible causes:\n\n"
-		"1. The image you are trying to save may be too large.\n"
-		"2. The filename for the image is invalid.",
-		NULL, MB_OK | MB_ICONSTOP | MB_TASKMODAL);
-	return 0;
-}
-
 /**
  * Start the PNG save for an image of dimensions WIDTH x HEIGHT.
  */
 int png_save_start(char* file, int width, int height)
 {
-	if ((png = png_create_write_struct
-		(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL)
+	png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+
+	if (png == NULL)
 	{
-		return png_error2();
+		png_error(NULL, "Failed to create png object.");
+		return 0;
 	}
 
-	if ((pnginfo = png_create_info_struct(png)) == NULL || 
-		fopen_s(&png_fp, file, "wb"))
+	if ((pnginfo = png_create_info_struct(png)) == NULL)
 	{
+		png_error(png, "Failed to create png_info object.");
 		png_destroy_write_struct(&png, NULL);
-		return png_error2();
+		return 0;
+	}
+
+	if (fopen_s(&png_fp, file, "wb"))
+	{
+		png_error(png, "Failed to open png file.");
+		png_destroy_write_struct(&png, &pnginfo);
+		return 0;
 	}
 
 	if (setjmp(png_jmpbuf(png)))
 	{
-		// Any pnglib errors jump here
+		png_error(png, "Any pnglib errors jump here.");
 		png_destroy_write_struct(&png, &pnginfo);
 		fclose(png_fp);
-		return png_error2();
+		return 0;
 	}
 
 	png_init_io(png, png_fp);
@@ -106,10 +104,10 @@ int png_save_write_row(unsigned char* row)
 {
 	if (setjmp(png_jmpbuf(png)))
 	{
-		// any pnglib errors jump here
+		png_error(png, "Any pnglib errors jump here.");
 		png_destroy_write_struct(&png, &pnginfo);
 		fclose(png_fp);
-		return png_error2();
+		return 0;
 	}
 	png_write_row(png, row);
 	return 1;
@@ -122,10 +120,10 @@ int png_save_end(void)
 {
 	if (setjmp(png_jmpbuf(png)))
 	{
-		// any pnglib errors jump here
+		png_error(png, "Any pnglib errors jump here.");
 		png_destroy_write_struct(&png, &pnginfo);
 		fclose(png_fp);
-		return png_error2();
+		return 0;
 	}
 
 	png_write_end(png, NULL);
