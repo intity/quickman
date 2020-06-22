@@ -17,9 +17,9 @@
 #define IDC_HAND_CLOSED                 109
 #define IDC_HAND_OPEN                   110
 #define IDC_RTZOOM                      111
-#define IDC_STATUS                      1001
+#define IDC_STATUS_1                    1001
 #define IDC_INFO                        1002
-#define IDC_STATUS2                     1007
+#define IDC_STATUS_2                    1007
 #define IDC_PRECISION                   1010
 #define IDC_ITERS                       1019
 #define IDC_ADJUST_ITERS                1020
@@ -35,11 +35,6 @@
 #define IDC_PAL_TEXT                    1053
 #define IDC_RENDERING_TXT               1054
 #define IDC_ALGORITHM_TEXT              1055
-#define IDC_ASPECT                      1058
-#define IDC_PNG                         1063
-#define IDC_MAGS                        1064
-#define IDC_SAVE_XSIZE                  1068
-#define IDC_SAVE_YSIZE                  1069
 #define IDC_IMAGEFILE                   1070
 #define IDC_SAVEFILE                    1070
 

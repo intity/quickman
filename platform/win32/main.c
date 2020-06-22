@@ -149,18 +149,15 @@ static RECT main_rect;				// rectangle for the main window
 static HWND hwnd_main;				// handle for the main window
 static HWND hwnd_dialog = 0;		// handle for the dialog box
 static HWND hwnd_info;				// handle for the info text areas
-static HWND hwnd_status;			// handle for the status text areas
-static HWND hwnd_status2;
+static HWND hwnd_status_1;			// handle for the status text areas
+static HWND hwnd_status_2;
 static HWND hwnd_iters;				// and other controls
-static HWND hwnd_thumbnail_frame;
 static HINSTANCE hinstance = 0;		// the application
 static HDC hscreen_dc = NULL;		// screen device context
-static int x_border;		// variables for calculating window sizes and such
+
+// variables for calculating window sizes and such
+static int x_border;
 static int y_border;
-static int y_thinborder;
-static int x_dialog_border;
-static int y_dialog_border;
-static int lpix_per_inch;
 
 /**
  * Zoom steps as a function of slider value. Nonlinear at beginning and end.
@@ -760,11 +757,11 @@ void print_fps_status_line(double fps, double avg_fps, double eff)
 	// don't get cut off
 	sprintf_s(s, sizeof(s), "%c Fps %3.0f/%-3.0f", m->cur_alg & ALG_EXACT 
 		? 'E' : 'F', fps, avg_fps);
-	SetWindowText(hwnd_status, s);
+	SetWindowText(hwnd_status_1, s);
 
 	// Iteration percentage: mandelbrot calculation time / total time
 	sprintf_s(s, sizeof(s), "Iter %2.0f%%", eff);
-	SetWindowText(hwnd_status2, s);
+	SetWindowText(hwnd_status_2, s);
 }
 
 /**
@@ -2007,14 +2004,14 @@ void print_status_line(int calc)
 		sprintf_s(s, sizeof(s), "%s%s", calc ? "Calculating..." : "Ready ",
 			calc ? "" : m->precision_loss ? "[Prec Loss]" : "");
 
-		SetWindowText(hwnd_status, s);
+		SetWindowText(hwnd_status_1, s);
 	}
 
 	sprintf_s(s, sizeof(s), "%d/%d  %c", log_pos + 1, log_count,
 		m->precision == PRECISION_SINGLE
 		? 'S' : m->precision == PRECISION_DOUBLE ? 'D' : 'E');
 
-	SetWindowText(hwnd_status2, s);
+	SetWindowText(hwnd_status_2, s);
 }
 
 /**
@@ -2224,7 +2221,7 @@ void update_dialog(int hide, int move)
 		if (overhang > 0)
 		{
 			xpos -= overhang;
-			ypos += y_border - y_thinborder;
+			ypos += y_border;
 		}
 	}
 	else // keep at current position
@@ -2244,17 +2241,8 @@ void update_dialog(int hide, int move)
 void get_system_metrics(void)
 {
 	x_border = 2 * GetSystemMetrics(SM_CXSIZEFRAME);
-	y_border = 2 * (y_thinborder = GetSystemMetrics(SM_CYSIZEFRAME)) +
+	y_border = 2 * GetSystemMetrics(SM_CYSIZEFRAME) +
 		GetSystemMetrics(SM_CYCAPTION);
-
-	// X/Y reversed on these
-	x_dialog_border = 2 * GetSystemMetrics(SM_CXFIXEDFRAME);
-	y_dialog_border = 2 * GetSystemMetrics(SM_CYFIXEDFRAME) +
-		GetSystemMetrics(SM_CYSMCAPTION);
-
-	// Get font size. Assumes x/y pixels per inch are the same. Returns 96 for 
-	// normal, 120 for large.
-	lpix_per_inch = GetDeviceCaps(GetDC(NULL), LOGPIXELSX);
 }
 
 /**
@@ -2367,11 +2355,9 @@ unsigned int CALLBACK do_save(LPVOID param)
 	s = &save_man_calc_struct;
 
 	// Get sizes for image save, and clip
-	if ((save_xsize = GetDlgItemInt
-		(hwnd_dialog, IDC_SAVE_XSIZE, NULL, FALSE)) < MIN_SIZE)
+	if ((save_xsize = m->xsize) < MIN_SIZE)
 		save_xsize = MIN_SIZE;
-	if ((save_ysize = GetDlgItemInt
-		(hwnd_dialog, IDC_SAVE_YSIZE, NULL, FALSE)) < MIN_SIZE)
+	if ((save_ysize = m->ysize) < MIN_SIZE)
 		save_ysize = MIN_SIZE;
 
 	// Get filename and add .png extension if not already present
@@ -2485,7 +2471,7 @@ unsigned int CALLBACK do_save(LPVOID param)
 		{
 			sprintf_s(c, sizeof(c), "Saving... (%3.1f%%)",
 				100.0 * (double)i / (double)save_ysize);
-			SetWindowText(hwnd_status, c);
+			SetWindowText(hwnd_status_1, c);
 			t = get_timer();
 		}
 	}
@@ -2494,7 +2480,7 @@ unsigned int CALLBACK do_save(LPVOID param)
 		png_error_msg();
 
 	sprintf_s(c, sizeof(c), "Saved in %.1fs", get_seconds_elapsed(start_time));
-	SetWindowText(hwnd_status, c);
+	SetWindowText(hwnd_status_1, c);
 
 	m->status &= ~STAT_DOING_SAVE;
 	img_save = 0;
@@ -2745,22 +2731,9 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	static int ignore_next_change = 0;
 	static int new_file_entered = 0;
 	static int new_file_selected = 0;
-	int dialog_w, dialog_h, text_w, text_h, frame_w, frame_h, last_ypixel;
-	int done, max_tries;
 	int tab_spacing = 26; // dialog box units
-	RECT rc_tframe, rc_status, rc_dialog;
 	log_entry* e;
 	man_calc_struct* m = &main_man_calc_struct;
-
-	// Original dialog box coords and sizes, for adjustment
-#define ORIG_YBORDER		34
-#define ORIG_DIALOG_HEIGHT	(700 + ORIG_YBORDER)
-#define ORIG_DIALOG_WIDTH	173
-#define ORIG_STATUS_X		8
-#define YBORDER_ADJUSTMENT	(y_border - ORIG_YBORDER)
-#define ORIG_LPIX			96	// original logical pixels per inch
-#define TFRAME_MIN_HEIGHT	1	// thumbnail frame is now an invisible dummy 
-								// item used for sizing
 
 	switch (uMsg)
 	{
@@ -2795,112 +2768,9 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		// If any of these are null, the system has major problems
 		hwnd_iters		= GetDlgItem(hwnd, IDC_ITERS);
 		hwnd_info		= GetDlgItem(hwnd, IDC_INFO);
-		hwnd_status		= GetDlgItem(hwnd, IDC_STATUS);
-		hwnd_status2	= GetDlgItem(hwnd, IDC_STATUS2);
-		// v1.10: now an invisible dummy item
-		hwnd_thumbnail_frame = GetDlgItem(hwnd, IDC_THUMBNAIL_FRAME);
+		hwnd_status_1	= GetDlgItem(hwnd, IDC_STATUS_1);
+		hwnd_status_2	= GetDlgItem(hwnd, IDC_STATUS_2);
 
-		// PNG save and Preserve aspect ratio buttons checked by default
-		SendDlgItemMessage(hwnd, IDC_PNG, BM_SETCHECK, BST_CHECKED, 0);
-		SendDlgItemMessage(hwnd, IDC_ASPECT, BM_SETCHECK, BST_CHECKED, 0);
-
-		// Adjust dialog box to compensate for different border and font sizes. 
-		// What a pain...
-
-		// To simulate Vista large fonts on XP: set font size to large, set 
-		// lpix_per_inch to 120, and change "MS Shell Dlg" font size to 10 in 
-		// quickman.rc. Seems almost exact.
-		// lpix_per_inch = 120;
-
-		// The seems to be no documented function to help figure out how a 
-		// dialog box width should scale with font size. The calc. below 
-		// usually turns out too wide. Will be corrected in an iterative 
-		// process below...
-
-		dialog_w = (lpix_per_inch * (ORIG_DIALOG_WIDTH - x_dialog_border)) /
-			ORIG_LPIX + x_dialog_border;
-
-		// Initially, see if things fit in a dialog that's the same height as 
-		// the main window
-		dialog_h = ORIG_DIALOG_HEIGHT + YBORDER_ADJUSTMENT;
-
-		// With pathologically large fonts, could fail to make a decent box- 
-		// just give up after a certain number of tries
-		max_tries = 3;
-
-		do
-		{
-			SetWindowPos(hwnd, HWND_TOP, 0, 0,
-				dialog_w,
-				dialog_h,
-				SWP_NOMOVE | SWP_HIDEWINDOW);
-
-			GetWindowRect(hwnd, &rc_dialog); // get adjusted dialog rect
-
-			// Dialog item positions are relative to dialog box coords. y = 0 
-			// is the topmost pixel in the dialog (inside the border). 
-			// Last_ypixel is the bottommost pixel in the dialog. These seem
-			// to be the right calculations...
-
-			last_ypixel = rc_dialog.bottom - rc_dialog.top - y_dialog_border - 1;
-
-			GetWindowRect(hwnd_status, &rc_status);		// get status line rect
-
-			// height of status line text
-			text_h = rc_status.bottom - rc_status.top;
-
-#define TEXT_TO_BOTTOM_SPACE  8 // some fine-tuning constants
-#define TEXT_TO_FRAME_SPACE   8
-#define FRAME_TO_DIALOG_SPACE 8 // distance to dialog edges from each vertical 
-								// side of frame
-
-			text_h += TEXT_TO_BOTTOM_SPACE;
-
-			// Adjust status1/status2 ypos so they're just above the bottom of 
-			// the dialog
-			SetWindowPos(hwnd_status, HWND_TOP, ORIG_STATUS_X,
-				last_ypixel - text_h, 0, 0, SWP_NOSIZE);
-
-			GetWindowRect(hwnd_status2, &rc_status);	// get status2 line rect
-
-			// not sure why this width is off by a few pixels
-			text_w = rc_status.right - rc_status.left + 4;
-
-			// Get thumbnail frame rectangle
-			GetWindowRect(hwnd_thumbnail_frame, &rc_tframe);
-
-			// Adjust status2 xpos so its right lines up with the thumbnail 
-			// frame right
-			SetWindowPos(hwnd_status2, HWND_TOP,
-				rc_tframe.right - rc_dialog.left - text_w,
-				last_ypixel - text_h, 0, 0, SWP_NOSIZE);
-
-			// Adjust height of thumbnail frame so its bottom is just above the 
-			// status line top
-			SetWindowPos(hwnd_thumbnail_frame, HWND_TOP, 0, 0,
-				frame_w = rc_tframe.right - rc_tframe.left,
-				frame_h = rc_dialog.bottom - rc_tframe.top - text_h - TEXT_TO_FRAME_SPACE,
-				SWP_NOMOVE);
-
-			done = 1;
-
-			// If dialog is too wide or too narrow, adjust to frame width and 
-			// start over
-			if (dialog_w != (frame_w += 2 * (lpix_per_inch * FRAME_TO_DIALOG_SPACE) /
-				ORIG_LPIX + x_dialog_border))
-			{
-				dialog_w = frame_w;
-				done = 0;
-			}
-
-			// If frame height is too small, increase dialog height and start 
-			// over
-			if (frame_h < TFRAME_MIN_HEIGHT)
-			{
-				dialog_h += TFRAME_MIN_HEIGHT - frame_h;
-				done = 0;
-			}
-		} while (!done && --max_tries);
 		return FALSE;
 	}
 	case WM_VSCROLL: // Update iterations from spin control
@@ -2930,10 +2800,11 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		return TRUE;
 	}
-	case WM_HSCROLL:	// Slider values are being updated. Moving these around 
-						// during zooming annoyingly creates about a 1% 
-						// slowdown, even with no processing.
+	case WM_HSCROLL:
 	{
+		// Slider values are being updated. Moving these around during zooming 
+		// annoyingly creates about a 1% slowdown, even with no processing.
+
 		if ((HWND)lParam == GetDlgItem(hwnd, IDC_PAN_RATE))
 			cfg.pan_rate.c_val = (int)SendDlgItemMessage
 			(hwnd, IDC_PAN_RATE, TBM_GETPOS, 0, 0);
@@ -2942,8 +2813,9 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			cfg.zoom_rate.c_val = (int)SendDlgItemMessage
 			(hwnd, IDC_ZOOM_RATE, TBM_GETPOS, 0, 0);
 
-		reset_fps_values(m);	// reset frames/sec timing values when pan or 
-								// zoom rate changes
+		// reset frames/sec timing values when pan or zoom rate changes
+		reset_fps_values(m);
+
 		return TRUE;
 	}
 	case WM_COMMAND:
@@ -3017,45 +2889,6 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				get_num_threads();
 			return TRUE;
 		}
-		case IDC_SAVE_XSIZE:
-		case IDC_SAVE_YSIZE:
-		{
-			// Set save xsize or ysize automatically from the other if preserve 
-			// aspect box is checked
-			if (HIWORD(wParam) == EN_UPDATE)
-			{
-				if (IsDlgButtonChecked(hwnd, IDC_ASPECT))
-				{
-					double aspect;
-					aspect = (double)m->xsize / (double)m->ysize;
-
-					// Need the ignore_ logic to prevent infinite message loops
-					if (LOWORD(wParam) == IDC_SAVE_XSIZE)
-						if (ignore_next_change != 1)
-						{
-							ignore_next_change = 2;
-							SetDlgItemInt(hwnd, IDC_SAVE_YSIZE,
-								(int)(0.5 + (double)GetDlgItemInt
-								(hwnd, IDC_SAVE_XSIZE, NULL, FALSE) / aspect),
-								FALSE);
-						}
-						else
-							ignore_next_change = 0;
-					else
-						if (ignore_next_change != 2)
-						{
-							ignore_next_change = 1;
-							SetDlgItemInt(hwnd, IDC_SAVE_XSIZE,
-								(int)(0.5 + (double)GetDlgItemInt
-								(hwnd, IDC_SAVE_YSIZE, NULL, FALSE) * aspect),
-								FALSE);
-						}
-						else
-							ignore_next_change = 0;
-				}
-			}
-			return TRUE;
-		}
 		case ID_HOME:
 		{
 			// Reset to base image coordinates; deliberate fallthru
@@ -3119,14 +2952,14 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				print_status_line(0);
 
 				// Ok if this stays till next calculation
-				SetWindowText(hwnd_status, "Logged");
+				SetWindowText(hwnd_status_1, "Logged");
 			}
 			new_file_entered = 0;
 			new_file_selected = 0;
 
 			// If user wants a new log image...
-			if ((LOWORD(wParam) == ID_LOG_NEXT ||
-				LOWORD(wParam == ID_LOG_PREV)) && log_count)
+			if ((LOWORD(wParam) == ID_LOG_NEXT || LOWORD(wParam == ID_LOG_PREV)) 
+				&& log_count)
 			{
 				// Autoreset any previous settings that need it
 				autoreset_settings(&cfg);
@@ -3721,10 +3554,6 @@ MainWndProc(HWND hwnd, UINT nMsg, WPARAM wParam, LPARAM lParam)
 			{
 				// update size info if resized
 				SetWindowText(hwnd_info, get_image_info(m, 0));
-
-				// update sizes for image save
-				SetDlgItemInt(hwnd_dialog, IDC_SAVE_XSIZE, m->xsize, FALSE);
-				SetDlgItemInt(hwnd_dialog, IDC_SAVE_YSIZE, m->ysize, FALSE);
 			}
 
 			// Send a WM_EXITSIZEMOVE message if window was maximized/restored
