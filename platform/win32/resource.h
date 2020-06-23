@@ -36,7 +36,6 @@
 #define IDC_RENDERING_TXT               1054
 #define IDC_ALGORITHM_TEXT              1055
 #define IDC_IMAGEFILE                   1070
-#define IDC_SAVEFILE                    1070
 
 // Next default values for new objects
 // 

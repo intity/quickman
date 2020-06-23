@@ -2361,7 +2361,7 @@ unsigned int CALLBACK do_save(LPVOID param)
 		save_ysize = MIN_SIZE;
 
 	// Get filename and add .png extension if not already present
-	GetDlgItemText(hwnd_dialog, IDC_SAVEFILE, img_file, sizeof(img_file));
+	GetDlgItemText(hwnd_dialog, IDC_IMAGEFILE, img_file, sizeof(img_file));
 	n = (int)strlen(img_file);
 	if (n < 4 || _strnicmp(&img_file[n - 4], ".png", 4))
 		strcat_s(img_file, sizeof(img_file), ".png");
@@ -2759,7 +2759,7 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		combobox_init(hwnd, IDC_LOGFILE);
 
 		// default save filename- later have this scan for next available
-		SetWindowText(GetDlgItem(hwnd, IDC_SAVEFILE), img_file);
+		SetWindowText(GetDlgItem(hwnd, IDC_IMAGEFILE), img_file);
 
 		// Set tab stops for the INFO window
 		SendDlgItemMessage(hwnd, IDC_INFO, EM_SETTABSTOPS, 1,
