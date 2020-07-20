@@ -1828,35 +1828,27 @@ void pan_image(man_calc_struct* m, int offs_x, int offs_y)
 }
 
 /**
- * Create the text in the INFO area of the main dialog.
- * If update_iters_sec is 0, won't update iters/sec and gflops (use during
+ * Updates image information.
+ * If update_iters_sec is 0, won't update iters/sec and gflops (use during 
  * panning, when calculations will be inaccurate due to short calculation times)
  */
-char* get_image_info(man_calc_struct* m, int update_iters_sec)
+void get_image_info(man_calc_struct* m, int update_iters_sec)
 {
-	static char s[1024 + 32 * MAX_THREADS];
-	static char iters_str[256];
-	static unsigned long long ictr = 0;
-	static double guessed_pct = 0.0;
-	static double miters_s = 0.0;	// mega iterations/sec
-	static double avg_iters = 0.0;	// average iterations per pixel
-
+	int i, points_guessed;
 	unsigned long long ictr_raw;
 	unsigned long long ictr_total_raw;
-	double cur_pct, max_cur_pct, tot_pct, max_tot_pct;
-	int i, points_guessed;
 	thread_state* t;
-	char tmp[256];
 
 	ictr_raw = 0;
 	ictr_total_raw = 0;
 	points_guessed = 0;
+
 	for (i = 0; i < m->num_threads; i++)
 	{
 		t = &m->thread_states[i];
-		points_guessed += t->points_guessed;
-		ictr_raw += t->ps_ptr->iterctr;	// N iterations per tick
+		ictr_raw       += t->ps_ptr->iterctr;	// N iterations per tick
 		ictr_total_raw += t->total_iters;
+		points_guessed += t->points_guessed;
 	}
 
 	if (update_iters_sec)
@@ -1865,13 +1857,14 @@ char* get_image_info(man_calc_struct* m, int update_iters_sec)
 		// For the SSE2 ASM versions, each tick is 4 iterations.
 		// For the SSE ASM versions, each tick is 8 iterations.
 
-		ictr = ictr_raw;
+		m->ictr = ictr_raw;
+
 		if (!(m->algorithm & ALG_C))
 		{
 			if (m->precision == PRECISION_DOUBLE && m->sse_support >= 2)
-				ictr <<= 2;
+				m->ictr <<= 2;
 			if (m->precision == PRECISION_SINGLE && m->sse_support >= 1)
-				ictr <<= 3;
+				m->ictr <<= 3;
 		}
 
 		// Prevent division by 0. If the time is in this neighborhood the 
@@ -1879,79 +1872,39 @@ char* get_image_info(man_calc_struct* m, int update_iters_sec)
 		if (m->iter_time < 0.001)
 			m->iter_time = 0.001;
 
-		miters_s = (double)ictr * 1e-6 / m->iter_time;
-		avg_iters = (double)ictr / (double)m->img_size;
-
-		guessed_pct = 100.0 * (double)points_guessed / (double)m->img_size;
+		m->ictr_m      = (double)m->ictr * 1e-6 / m->iter_time;
+		m->ictr_g      = m->ictr_m * 9.0 * 1e-3;
+		m->avg_iters   = (double)m->ictr / (double)m->img_size;
+		m->guessed_pct = 100.0 * (double)points_guessed / (double)m->img_size;
 
 		// Since one flop is optimized out per 18 flops in the ASM versions,
 		// factor should really be 8.5 for those. But actually does 9 
-		// "effective" flops per iteration
-
-		sprintf_s(iters_str, sizeof(iters_str), "%-4.4gM (%-.2f GFlops)", 
-			miters_s, miters_s * 9.0 * 1e-3);
+		// "effective" flops per iteration.
 	}
-
-	sprintf_s(s, sizeof(s),   // Microsoft wants secure version
-		"Real\t%-16.16lf\r\n"
-		"Imag\t%-16.16lf\r\n"
-		"Mag\t%-16lf\r\n"
-		"\r\n"
-		"Size\t%u x %u\r\n"
-		"Time\t%-3.3fs\r\n"
-		"Iters/s\t%s\r\n"
-
-		"\r\n" // Everything here and below is "hidden" - must scroll down to see
-
-		"Avg iters/pixel\t%-.1lf\r\n"
-		"Points guessed\t%-.1lf%%\r\n"
-		"Total iters\t%-.0lf\r\n",
-
-		// With new panning method, need to get actual screen centerpoint using 
-		// pan offsets
-		m->re + get_re_im_offs(m, m->pan_xoffs),
-		m->im - get_re_im_offs(m, m->pan_yoffs),
-		
-		// Miters/s string created above
-		m->mag, m->xsize, m->ysize, m->iter_time, iters_str, avg_iters, 
-		guessed_pct, (double)ictr
-	);
 
 	// Get each thread's percentage of the total load, to check balance.
 
-	sprintf_s(tmp, sizeof(tmp), "\r\nThread load %%\tCur    Total\r\n");
-	strcat_s(s, sizeof(s), tmp);
-
-	max_cur_pct = 0.0;
-	max_tot_pct = 0.0;
+	m->max_cur_pct = 0.0;
+	m->max_tot_pct = 0.0;
 
 	for (i = 0; i < m->num_threads; i++)
 	{
 		t = &m->thread_states[i];
-		sprintf_s(tmp, sizeof(tmp),
-			"Thread %d\t%#3.3g   %#3.3g\r\n", i,
-			cur_pct = (double)t->ps_ptr->iterctr / (double)ictr_raw * 100.0,
-			tot_pct = (double)t->total_iters / (double)ictr_total_raw * 100.0);
-		strcat_s(s, sizeof(s), tmp);
+		t->cur_pct = (double)t->ps_ptr->iterctr / (double)ictr_raw * 100.0;
+		t->tot_pct = (double)t->total_iters / (double)ictr_total_raw * 100.0;
 
-		if (cur_pct > max_cur_pct)
-			max_cur_pct = cur_pct;
-		if (tot_pct > max_tot_pct)
-			max_tot_pct = tot_pct;
+		if (t->cur_pct > m->max_cur_pct)
+			m->max_cur_pct = t->cur_pct;
+
+		if (t->tot_pct > m->max_tot_pct)
+			m->max_tot_pct = t->tot_pct;
 	}
 
 	// Figure of merit: percentage of best possible speed, which occurs with
 	// perfect thread load balancing.
-	sprintf_s(tmp, sizeof(tmp),
-		"Efficiency %%\t%#3.3g   %#3.3g\r\n"
-		"\r\nTotal calc time:\t%-.3lfs\r\n" // resets whenever new file is opened
-		"\r\n(C) 2006-2008 Paul Gentieu",
-		100.0 * 100.0 / (m->num_threads * max_cur_pct),
-		100.0 * 100.0 / (m->num_threads * max_tot_pct),
-		m->calc_time);
-	strcat_s(s, sizeof(s), tmp);
 
-	return s;
+	m->max_cur_pct = 100.0 * 100.0 / (m->num_threads * m->max_cur_pct);
+	m->max_tot_pct = 100.0 * 100.0 / (m->num_threads * m->max_tot_pct);
 }
 
 /* -------------------------- GUI/misc functions --------------------------- */

@@ -765,6 +765,71 @@ void print_fps_status_line(double fps, double avg_fps, double eff)
 }
 
 /**
+ * Print the text in the INFO area of the toolbar.
+ */
+void print_image_info(int update_iters_sec)
+{
+	int i;
+	char s[1024 + 32 * MAX_THREADS], tmp[256];
+	man_calc_struct* m = &main_man_calc_struct;
+	thread_state* t;
+
+	get_image_info(m, update_iters_sec);
+
+	sprintf_s(s, sizeof(s), 
+		"Real\t%-16.16lf\r\n"
+		"Imag\t % -16.16lf\r\n"
+		"Mag\t%-16lf\r\n"
+		"\r\n"
+		"Size\t%u x %u\r\n"
+		"Time\t%-3.3fs\r\n"
+		"Iters/s\t%-4.4gM (%-.2f GFlops)\r\n"
+		"\r\n"
+		"Avg iters/pixel\t%-.1lf\r\n"
+		"Points guessed\t%-.1lf%%\r\n"
+		"Total iterations\t%-.0lf\r\n",
+
+		m->re + get_re_im_offs(m, m->pan_xoffs),
+		m->im - get_re_im_offs(m, m->pan_yoffs),
+		m->mag,
+		m->xsize,
+		m->ysize,
+		m->iter_time,
+		m->ictr_m,
+		m->ictr_g,
+		m->avg_iters,
+		m->guessed_pct,
+		(double)m->ictr
+	);
+
+	sprintf_s(tmp, sizeof(tmp), "\r\nThread load %%\tCur\tTotal\r\n");
+	strcat_s(s, sizeof(s), tmp);
+
+	for (i = 0; i < m->num_threads; i++)
+	{
+		t = &m->thread_states[i];
+
+		sprintf_s(tmp, sizeof(tmp), 
+			"Thread %d\t%#3.3g\t%#3.3g\r\n", i, 
+			t->cur_pct,
+			t->tot_pct);
+		strcat_s(s, sizeof(s), tmp);
+	}
+
+	sprintf_s(tmp, sizeof(tmp),
+		"Efficiency %%\t%#3.3g\t%#3.3g\r\n"
+		"\r\n"
+		"Total calculate time:\t%-.3lfs",
+		m->max_cur_pct,
+		m->max_tot_pct,
+		m->calc_time);
+
+	strcat_s(s, sizeof(s), tmp);
+
+	SetWindowText(hwnd_info, s);
+}
+
+/**
  * Get frames/sec during one interval, average frames per sec, and iteration
  * time percentage (mandelbrot calculation time / pan or zoom time). Assumes
  * iter_time is set to the mandelbrot calculation time. Op_time should be the
@@ -801,9 +866,7 @@ void update_benchmarks(double op_time, int update_iters_sec)
 		// eff = 100.0 * calc_total_time / total_time;
 
 		print_fps_status_line(fps, avg_fps, eff);
-
-		// Update image info
-		SetWindowText(hwnd_info, get_image_info(m, update_iters_sec));
+		print_image_info(update_iters_sec);	// update image info
 
 		interval_frames		= 0;
 		interval_time		= 0.0;
@@ -1025,8 +1088,7 @@ int do_panning()
 
 	if (get_pan_steps(&xstep, &ystep, 0))
 	{
-		// update image info
-		SetWindowText(hwnd_info, get_image_info(m, 0));
+		print_image_info(0);	// update image info
 
 		pan_time = -1.0;	// restart timing next time
 		return 0;
@@ -1161,8 +1223,7 @@ int do_zooming()
 		// use for benchmarking
 		m->calc_time = get_seconds_elapsed(zoom_start_time);
 
-		// Update all info
-		SetWindowText(hwnd_info, get_image_info(m, 1));
+		print_image_info(1);	// update image info
 	}
 	return 1;
 }
@@ -2180,10 +2241,9 @@ void do_man_calculate(int recalc_all)
 	// Don't update this stuff if realtime zooming. Will be done at intervals
 	if (recalc_all && !do_rtzoom)
 	{
-		// update time, GFlops
-		SetWindowText(hwnd_info, get_image_info(m, 1));
-
+		print_image_info(1);	// update image info
 		print_status_line(0);
+
 		SetCursor(cursor);	// restore old cursor
 	}
 }
@@ -2657,10 +2717,8 @@ void fancy_intro()
 	// "resized" initially, but no need to calc again
 	m->status &= ~STAT_RECALC_IMMEDIATELY;
 
-	// print first info, status
-	SetWindowText(hwnd_info, get_image_info(m, 1));
-
-	print_status_line(0);
+	print_image_info(1);	// update image info
+	print_status_line(0);	// update status bar
 
 	m->calc_time = 0.0; // don't count intro time in file total time
 }
@@ -2709,11 +2767,11 @@ void man_init(void)
 			// radius and constant 2.0
 			ps_ptr->two_d[1] = ps_ptr->two_d[0] = 2.0;
 			ps_ptr->two_f[3] = ps_ptr->two_f[2] = ps_ptr->two_f[1] =
-				ps_ptr->two_f[0] = 2.0;
+			ps_ptr->two_f[0] = 2.0;
 
 			ps_ptr->rad_d[1] = ps_ptr->rad_d[0] = DIVERGED_THRESH;
 			ps_ptr->rad_f[3] = ps_ptr->rad_f[2] = ps_ptr->rad_f[1] =
-				ps_ptr->rad_f[0] = DIVERGED_THRESH;
+			ps_ptr->rad_f[0] = DIVERGED_THRESH;
 		}
 	}
 }
@@ -3227,7 +3285,7 @@ MainWndProc(HWND hwnd, UINT nMsg, WPARAM wParam, LPARAM lParam)
 			{
 				// Update image info (excluding iters/sec) after pan or 
 				// realtime zoom
-				SetWindowText(hwnd_info, get_image_info(m, 0));
+				print_image_info(0);
 			}
 		}
 		have_box = 0;
@@ -3529,6 +3587,7 @@ MainWndProc(HWND hwnd, UINT nMsg, WPARAM wParam, LPARAM lParam)
 	case WM_WINDOWPOSCHANGED:
 	{
 		GetWindowPlacement(hwnd, &wp);
+
 		// only do this if not minimizing window
 		if (wp.showCmd != SW_SHOWMINIMIZED)
 		{
@@ -3552,8 +3611,7 @@ MainWndProc(HWND hwnd, UINT nMsg, WPARAM wParam, LPARAM lParam)
 			// rename this- now does a lot more than create a bitmap
 			if (prev_sizing = create_bitmap(m->xsize, m->ysize))
 			{
-				// update size info if resized
-				SetWindowText(hwnd_info, get_image_info(m, 0));
+				print_image_info(0);	// update size info if resized
 			}
 
 			// Send a WM_EXITSIZEMOVE message if window was maximized/restored
@@ -3562,10 +3620,12 @@ MainWndProc(HWND hwnd, UINT nMsg, WPARAM wParam, LPARAM lParam)
 				SendMessage(hwnd, WM_EXITSIZEMOVE, 0, 0);
 				prev_max_restore = wp.showCmd;
 			}
+
 			// Save main window rect for fullscreen mode if not maximized and 
 			// not already in fullscreen
 			if (wp.showCmd != SW_SHOWMAXIMIZED && !(m->status & STAT_FULLSCREEN))
 				GetWindowRect(hwnd, &main_rect);
+
 			return FALSE;
 		}
 		return TRUE;

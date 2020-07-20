@@ -513,10 +513,16 @@ typedef struct {
 	unsigned long long total_iters;		// iters value that keeps accumulating 
 										// until reset (before next zoom, etc)
 	unsigned int points_guessed;		// points guessed in fast algorithm
+
+	// Image info
+	double cur_pct;
+	double tot_pct;
 } thread_state;
 
-// Use this for overhead-sensitive functions (but nothing else, as it can
-// hog registers). Seems to have a small effect.
+/**
+ * Use this for overhead-sensitive functions (but nothing else, as it can
+ * hog registers). Seems to have a small effect.
+ */
 #define FASTCALL __fastcall
 
 /**
@@ -605,6 +611,16 @@ typedef struct {
 	unsigned int max_iters;			// maximum iterations to do per point
 	unsigned int max_iters_last;	// last max_iters used in a calculation
 
+	double ictr_m;					// mega (MFLOPS 10^6) iterations/sec
+	double ictr_g;					// giga (GFLOPS 10^9) iterations/sec
+	double itime;					// mandelbrot iteration time only
+	double avg_iters;				// average iterations per pixel
+	double guessed_pct;				// points guessed
+	unsigned long long ictr;		// total iterations
+
+	double max_cur_pct;	// maximum efficiency current thread
+	double max_tot_pct;	// maximum efficiency total iterations thread
+
 	// GUI parameters, latched before the calculation starts
 	int rendering;			// rendering mode
 	int precision;			// precision (user-desired)
@@ -627,8 +643,8 @@ typedef struct {
 							// man_xsize x man_ysize)
 
 	// Dynamically allocated arrays
-	double* img_re;		// arrays for holding the RE, IM coordinates
-	double* img_im;		// of each pixel in the image
+	double* img_re;	// arrays for holding the RE, IM coordinates
+	double* img_im;	// of each pixel in the image
 
 	// for dummy line creation: see alloc_man_mem
 	unsigned int* iter_data_start;
@@ -714,7 +730,7 @@ void man_calculate_quadrants(man_calc_struct* m);
 void man_setup(man_calc_struct* m, int xstart, int xend, int ystart, int yend);
 void pan_image(man_calc_struct* m, int offs_x, int offs_y);
 int fast_wave_alg(man_calc_struct* m, man_pointstruct* ps_ptr, stripe* s);
-char* get_image_info(man_calc_struct* m, int update_iters_sec);
+void get_image_info(man_calc_struct* m, int update_iters_sec);
 double get_re_im_offs(man_calc_struct* m, long long offs);
 double get_timer(void);
 double get_seconds_elapsed(double start_time);
