@@ -642,6 +642,14 @@ typedef struct {
 	quadrant quad[4];		// The 4 quadrant bitmaps (each of size 
 							// man_xsize x man_ysize)
 
+	// FPS parameters
+	double total_time;				// total pan/zoom time
+	double interval_time;			// pan/zoom time during 1 interval
+	double calc_total_time;			// mandelbrot total time
+	double calc_interval_time;		// mandelbrot time during one interval
+	unsigned int total_frames;		// total frames
+	unsigned int interval_frames;	// frames per interval
+
 	// Dynamically allocated arrays
 	double* img_re;	// arrays for holding the RE, IM coordinates
 	double* img_im;	// of each pixel in the image
@@ -721,6 +729,7 @@ int calc_palette(man_calc_struct* m, unsigned int* dest, unsigned int* src,
 void calc_palette_for_thread(pal_work* p);
 
 // quickman.c
+void reset_fps_values(man_calc_struct* m);
 void update_re_im(man_calc_struct* m, long long xoffs, long long yoffs);
 void update_re_im_mag(man_calc_struct* m, int zoom_box, int in_outn,
 	int x0, int y0, int x1, int y1);

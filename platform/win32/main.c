@@ -124,13 +124,6 @@ char* file_strs[] = { log_file, "auto_panzoom.log" };
  */
 static double zoom_start_time;
 
-static double total_time			= 0.0;	// total pan/zoom time
-static double interval_time			= 0.0;	// pan/zoom time during 1 interval
-static double calc_total_time		= 0.0;	// mandelbrot total time
-static double calc_interval_time	= 0.0;	// mandelbrot time during one interval
-static unsigned int total_frames	= 0;	// total frames
-static unsigned int interval_frames = 0;	// frames per interval
-
 /**
  * Mouse position: index 0 is position on initial button press; index 1 is 
  * current position.
@@ -842,25 +835,25 @@ void update_benchmarks(double op_time, int update_iters_sec)
 	double fps, avg_fps, eff;
 	man_calc_struct* m = &main_man_calc_struct;
 
-	interval_frames++;
-	total_frames++;
-	interval_time += op_time; // Update interval and total operation times
-	total_time += op_time;
+	m->interval_frames++;
+	m->total_frames++;
+	m->interval_time += op_time; // Update interval and total operation times
+	m->total_time += op_time;
 
 	// Update time spent only on mandelbrot calculation
-	calc_total_time += m->iter_time;
+	m->calc_total_time += m->iter_time;
 
 	// Update time spent only on mandelbrot calculation this interval
-	calc_interval_time += m->iter_time;
+	m->calc_interval_time += m->iter_time;
 
 	// Update status line every interval
-	if (interval_time >= UPDATE_INTERVAL_TIME)
+	if (m->interval_time >= UPDATE_INTERVAL_TIME)
 	{
-		fps = (double)interval_frames / interval_time;
-		avg_fps = (double)total_frames / total_time;
+		fps = (double)m->interval_frames / m->interval_time;
+		avg_fps = (double)m->total_frames / m->total_time;
 
 		// interval iteration %
-		eff = 100.0 * calc_interval_time / interval_time;
+		eff = 100.0 * m->calc_interval_time / m->interval_time;
 
 		// average iteration %
 		// eff = 100.0 * calc_total_time / total_time;
@@ -868,9 +861,9 @@ void update_benchmarks(double op_time, int update_iters_sec)
 		print_fps_status_line(fps, avg_fps, eff);
 		print_image_info(update_iters_sec);	// update image info
 
-		interval_frames		= 0;
-		interval_time		= 0.0;
-		calc_interval_time	= 0.0;
+		m->interval_frames    = 0;
+		m->interval_time      = 0.0;
+		m->calc_interval_time = 0.0;
 	}
 }
 
@@ -883,19 +876,6 @@ void reset_pan_state(man_calc_struct* m)
 	cur_pan_ystep	= 0.0;
 	pan_xstep_accum = 0.0;
 	pan_ystep_accum = 0.0;
-}
-
-/**
- * Reset frames/sec timing values.
- */
-void reset_fps_values(man_calc_struct* m)
-{
-	total_frames		= 0;
-	interval_frames		= 0;
-	total_time			= 0.0;
-	interval_time		= 0.0;
-	calc_total_time		= 0.0;
-	calc_interval_time	= 0.0;
 }
 
 /**

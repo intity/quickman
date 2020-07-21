@@ -153,6 +153,21 @@ static const int wave_yoffs[7][4] = {
 	{-1,-1, 1, 1}, {-1, 0, 0, 1}, {-1, 0, 0, 1} 
 };
 
+/*-------------------------- Benchmark functions ----------------------------*/
+
+/**
+ * Reset frames/sec timing values.
+ */
+void reset_fps_values(man_calc_struct* m)
+{
+	m->total_frames       = 0;
+	m->interval_frames    = 0;
+	m->total_time         = 0.0;
+	m->interval_time      = 0.0;
+	m->calc_total_time    = 0.0;
+	m->calc_interval_time = 0.0;
+}
+
 /*-------------------------- File/misc functions ----------------------------*/
 
 /**
