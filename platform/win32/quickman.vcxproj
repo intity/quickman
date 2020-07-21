@@ -36,8 +36,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental />
+    <OutDir>$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <Optimization>Full</Optimization>
@@ -59,7 +64,7 @@
       <CompileAs>Default</CompileAs>
       <OmitDefaultLibName>false</OmitDefaultLibName>
       <ErrorReporting>Queue</ErrorReporting>
-      <PreprocessorDefinitions>_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ProjectReference />
     <Link>
@@ -85,13 +90,11 @@ start xcopy "$(ProjectDir)quickman.log" ..\..\build\ /y</Command>
       </Command>
     </PreBuildEvent>
     <BuildLog />
-    <BuildLog>
-      <Path>$(IntDir)$(MSBuildProjectName)_build.log</Path>
-    </BuildLog>
+    <BuildLog />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>Level3</WarningLevel>
     </ClCompile>
     <Link>
@@ -106,9 +109,7 @@ start xcopy "$(ProjectDir)quickman.log" ..\..\build\ /y</Command>
       </Command>
     </PreBuildEvent>
     <BuildLog />
-    <BuildLog>
-      <Path>$(IntDir)$(MSBuildProjectName)_build.log</Path>
-    </BuildLog>
+    <BuildLog />
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\quickman.h" />
@@ -126,13 +127,15 @@ start xcopy "$(ProjectDir)quickman.log" ..\..\build\ /y</Command>
     <ResourceCompile Include="quickman.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\imagesave.c" />
-    <ClCompile Include="..\..\src\palettes.c" />
-    <ClCompile Include="..\..\src\quickman.c" />
     <ClCompile Include="main.c" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\resources\quickman.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="libquickman.vcxproj">
+      <Project>{d8c4db67-6b5c-486e-a057-0149bb3c4e4e}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

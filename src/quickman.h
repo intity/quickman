@@ -32,6 +32,9 @@
 #ifndef _QUICKMAN_H_
 #define _QUICKMAN_H_
 
+#include <stdio.h>
+#include <time.h>
+
 #define CFG_FILE "quickman.cfg"	// configuration file containing default settings
 #define LOG_FILE "quickman.log"	// default log file
 #define IMG_FILE "image_1"		// default image file name
@@ -80,9 +83,6 @@
  * background.
  */
 #define MAX_QUEUE_THREADS  (MAX_THREADS * 2 + 3)
-
-#include <stdio.h>
-#include <time.h>
 
 #define DEFAULT_PAL		2		// new loud palette
 
