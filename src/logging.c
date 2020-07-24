@@ -48,7 +48,7 @@ int log_read_entry(FILE* fp, log_entry* entry)
 {
 	double vals[5];
 	int i = 0, j, pos;
-	unsigned char strs[5][256], * str, c;
+	unsigned char strs[5][256], * str = NULL, c;
 
 	// Read re, im, mag, iters, pal, and optional commands. To support legacy 
 	// logfiles, the five main fields don't need any leading items (they can be 
