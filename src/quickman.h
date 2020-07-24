@@ -32,13 +32,18 @@
 #ifndef _QUICKMAN_H_
 #define _QUICKMAN_H_
 
+#ifdef _WIN32
+#define _CRT_SECURE_NO_WARNINGS
+#include <crtdbg.h>
+#endif
+
 #include <stdio.h>
 #include <time.h>
 
+#define CFG_SIZE			13	// total number settings from configuration
 #define CFG_FILE "quickman.cfg"	// configuration file containing default settings
 #define LOG_FILE "quickman.log"	// default log file
 #define IMG_FILE "image_1"		// default image file name
-#define CFG_SIZE			13	// total number settings from configuration
 
 /**
  * Precision used in calculation
@@ -468,12 +473,19 @@ typedef struct {
 	double im;
 	double mag;
 	unsigned int max_iters;
-	unsigned int palette;
-
-	// Kinda wasteful to have the entire settings struct here when all we need 
-	// are the val fields, but it's easier this way
-	settings log_settings;
+	unsigned int palette;	// palette number
+	char pal_name[256];		// palette name
 } log_entry;
+
+/**
+ * A struct for handling log entries.
+ */
+typedef struct {
+	char file[256];		// log file
+	log_entry* entries;	// log entries
+	int pos;			// position per log entry
+	int count;			// total number of log entries
+} logging;
 
 /**
  * A stripe for the thread function to calculate.
@@ -594,6 +606,8 @@ typedef struct {
 	// Image size and offset parameters
 	int xsize;
 	int ysize;
+	int prev_xsize;		// previous sizes, for restoring window
+	int prev_ysize;
 	int min_dimension;	// dimension
 	int img_size;		// image size
 
@@ -672,12 +686,14 @@ typedef struct {
 	unsigned char* png_buffer;		// buffer for data to write to PNG file
 
 	// Palette and rendering related items
-	unsigned int palette;			// current palette to use
+	unsigned int palette;			// current palette number
 	unsigned int prev_pal;			// previous palette used
 	unsigned int pal_xor;			// for inversion (use 0xFFFFFF)
 	unsigned int max_iters_color;	// color of max iters points, from 
 									// logfile/cfgfile
+	unsigned int num_palettes;		// total number of builtin palettes
 	unsigned int num_valid_palettes;
+	char pal_file[256];				// filename of current user palette file
 
 	// Pointer for apply_palette function
 	void (*apply_palette)(unsigned int* dest, unsigned int* src, 
@@ -748,5 +764,14 @@ void free_man_mem(man_calc_struct* m);
 void set_wave_ptr_offs(man_calc_struct* m);
 void update_iters(man_calc_struct* m, int up, int down);
 void set_home_image(man_calc_struct* m);
+
+// cfg.c
+int cfg_init(man_calc_struct* m, settings* cfg, char* file);
+
+// logging.c
+int log_init(logging* log);
+int log_read(logging* log, int init_pos);
+int log_update(man_calc_struct* m, logging* log, int reset_pos);
+log_entry* get_log_entry(man_calc_struct* m, logging* log, int next_prevn);
 
 #endif /*_QUICKMAN_H_ */

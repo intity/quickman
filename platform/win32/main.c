@@ -34,10 +34,6 @@
 #include <process.h>
 #include <commctrl.h>
 
-#ifdef _DEBUG
-#include <crtdbg.h>
-#endif
-
 #include "stdafx.h"
 #include "resource.h"
 #include "..\..\src\quickman.h"
@@ -97,16 +93,11 @@ static char* threads_strs[] = {
 
 /* ---------------------- Global mandelbrot parameters --------------------- */
 
-static int prev_xsize;				// previous sizes, for restoring window
-static int prev_ysize;
 static double mouse_re;				// re/im coordinates of the mouse position
 static double mouse_im;
 static double zoom_start_mag;		// starting magnification, for zoom button
-static unsigned int num_palettes;	// total number of builtin palettes
 
-static char log_file[256] = LOG_FILE;	// default logfile
 static char img_file[256] = IMG_FILE;	// default save filename
-static char pal_file[256];			// filename of current user palette file
 
 static int nav_mode = NAV_RTZOOM;	// navigation mode
 static int img_save = 0;	// used in from do_save for call man_calculate
@@ -117,7 +108,7 @@ static int prev_do_rtzoom;	// previous state of do_rtzoom
  * Presets for the logfile combo box. Only need to add files here that we want
  * to be at the top of the box. Others will be added from the current directory.
  */
-char* file_strs[] = { log_file, "auto_panzoom.log" };
+char* file_strs[] = { LOG_FILE, "auto_panzoom.log" };
 
 /**
  * For zoom button benchmarking (helps measure overhead).
@@ -296,377 +287,11 @@ static settings cfg = {
 	{ "pfcmax",			300,			300,			1,		10000			},
 };
 
-/**
- * Holds the most recent set of settings read from a file.
- * Copied to the log entry if the entry was valid. Copied to the global config
- * settings if it was read out of quickman.cfg.
- */
-static settings cfg_cur;
-
-static log_entry* log_entries = NULL;
-static int log_pos = 0;
-static int log_count = 0;
-
-/**
- * Copy any settings fields that have changed (i.e., are >= 0) from src to dest.
- * If copy_to_default is 1, also copies changed settings to the default_val
- * fields (use with quickman.cfg). Then autoreset will reset to the
- * quickman.cfg default values.
- */
-void copy_changed_settings(settings* dest, settings* src, int copy_to_default)
-{
-	int i;
-	setting* s;
-	setting* d;
-
-	s = (setting*)src;	// treat structs as arrays
-	d = (setting*)dest;
-	for (i = 0; i < CFG_SIZE; i++)
-		if (s[i].c_val >= 0)
-		{
-			d[i].c_val = s[i].c_val;
-			if (copy_to_default)
-				d[i].d_val = s[i].c_val;
-		}
-}
-
-/**
- * Autoreset settings fields to defaults, if so configured. Call before every
- * image recalculation. Only should be called with global cfg_settings (change
- * to not take parm?)
- */
-void autoreset_settings(settings* dest)
-{
-	int i;
-	setting* d;
-	d = (setting*)dest; // treat struct as array
-	for (i = 0; i < CFG_SIZE; i++)
-		if (SETTING_AUTORESET(&d[i]))
-			d[i].c_val = d[i].d_val;
-}
-
-/**
- * Set all val fields to -1, which invalidates all settings.
- */
-void invalidate_settings(settings* dest)
-{
-	int i;
-	setting* d;
-	d = (setting*)dest; // treat struct as array
-	for (i = 0; i < CFG_SIZE; i++)
-		d[i].c_val = -1;
-}
-
-/**
- * Open a file for reading. Set bin nonzero to open it in binary mode, else
- * text mode.
- * :marked for delete:
- */
-FILE* open_file(const char* file, char* msg, int bin)
-{
-	char s[256];
-	FILE* fp;
-
-	if (fopen_s(&fp, file, bin ? "rb" : "rt"))
-	{
-		if (msg != NULL)
-		{
-			sprintf_s(s, sizeof(s), "Could not open '%s' for read.%s",
-				file, msg);
-			MessageBox(NULL, s, "Warning",
-				MB_OK | MB_ICONWARNING | MB_TASKMODAL);
-		}
-		return NULL;
-	}
-	return fp;
-}
-
-/**
- * Read a set of mandelbrot parms into a log entry (if not NULL). This has now
- * evolved to do a lot more (read in optional config settings and user
- * commands)
- */
-int log_read_entry(log_entry* entry, FILE* fp)
-{
-	double vals[5];
-	int i, j, n, ind, val;
-	setting* s, * f;
-	unsigned char strs[5][256], * str, c;
-	man_calc_struct* m = &main_man_calc_struct;
-
-	// Initialize cur file settings structure to all invalid (no change)
-	invalidate_settings(&cfg_cur);
-
-	// Read re, im, mag, iters, pal, and optional commands. To support legacy 
-	// logfiles, the five main fields don't need any leading items (they can be 
-	// just numbers). Any leading item before a number will be ignored, unless 
-	// it's a recognized setting.
-	for (i = 0; i < 5;)
-	{
-		if (feof(fp))
-			return 0;
-		if (fgets((char*)&strs[i][0], sizeof(strs[0]), fp) == NULL)
-			return 0;
-
-		str = &strs[i][0];
-
-		// Skip any leading whitespace
-		ind = -1;
-		do {
-			c = str[++ind];
-		} while (c == ' ' || c == '\t'); // null will terminate loop
-
-		// For added robustness, resync on "real", so corrupted files won't get 
-		// us out of sync.
-		if (!_strnicmp(&str[ind], "real", 4))
-			i = 0;
-
-		// Look for any optional commands or settings. This should stay 
-		// reasonably fast even with large logfiles.
-
-		s = (setting*)&cfg;		// treat structs as arrays
-		f = (setting*)&cfg_cur;
-		for (j = 0; j < sizeof(cfg) / sizeof(setting); j++)
-			// not case sensitive
-			if (!_strnicmp(&str[ind], s[j].name, (size_t)n = strlen(s[j].name)))
-			{
-				// Can use the function for reading a palette RGB value here 
-				// (it will read normal integers too). As a side effect any 24 
-				// bit value can be specified as three individual bytes if 
-				// desired...
-				// Some settings are palette values.
-
-				get_palette_rgb_val(ind + n, str, sizeof(strs[0]), &val);
-
-				// set value if it's within legal range
-				if (val >= s[j].min && val <= s[j].max)
-					f[j].c_val = val;
-				c = 0;  // found a setting; skip the stuff below
-				break;
-			}
-		if (!c)
-			continue;
-
-		// Might have an image parameter here (a number with or without leading 
-		// items). Strip out any leading non-numeric/non-quote chars, and 
-		// ignore comments.
-		for (j = ind; j < sizeof(strs[0]); j++)
-		{
-			if ((c = str[j]) == '/')  // '/' starts a comment
-				c = 0;
-			if ((c >= '0' && c <= '9') || c == '-' || c == '.' || c == '\"' || !c)
-				break;
-		}
-		if (c)
-		{
-			// Got something that looks like a number or a " if we get here. 
-			// Any bad values will be set to 0.0 (ok). J is long lived (see 
-			// below)
-			vals[i] = atof(&str[j]);
-			i++; // look for next entry
-		}
-	}
-
-	// All values good: update mandelbrot parms
-	if (entry != NULL)
-	{
-		// Fill in the entry, including optional fields (if they're still at 
-		// -1, nothing will happen later).
-		entry->re = vals[0];
-		entry->im = vals[1];
-		entry->mag = vals[2];
-		entry->max_iters = (unsigned int)vals[3];
-		entry->palette = (unsigned int)vals[4];
-
-		entry->log_settings = cfg_cur; // Copy any settings found above
-
-		// For user palette files (palette starts with " in logfile), use the 
-		// position in the dropdown list. Assumes dropdown list is already 
-		// populated. As a side effect this also allows the user to specify a 
-		// builtin palette by either name (e.g. "Muted") or number (3)
-		if (str[j] == '\"')
-		{
-			// Replace any trailing " with a null
-			for (i = j + 1; i < sizeof(strs[0]); i++)
-			{
-				if (str[i] == '\"')
-					str[i] = 0;
-				if (!str[i])
-					break;
-			}
-			// Get palette from dropdown list. If not found, set to default 
-			// palette.
-			i = (int)SendDlgItemMessage(hwnd_dialog,
-				IDC_PALETTE,
-				CB_FINDSTRINGEXACT,
-				num_palettes - 1,
-				(LPARAM)&str[j + 1]);
-
-			entry->palette = (i != CB_ERR) ? i : DEFAULT_PAL;
-		}
-	}
-	return 1;
-}
-
-/**
- * Scan the logfile, dynamically allocate an array for the entries, and fill it
- * in from the logfile. If init_pos is nonzero, initializes the position to the
- * beginning.
- */
-int log_read(char* file, char* msg, int init_pos)
-{
-	int i, count;
-	FILE* fp;
-	man_calc_struct* m = &main_man_calc_struct;
-
-	log_count = 0;
-	if (init_pos)
-	{
-		log_pos = -1;
-		m->calc_time = 0.0; // for benchmarking
-	}
-
-	// Kind of inefficient: scan once to get length, then scan again to fill in 
-	// array.
-	if ((fp = open_file(file, msg, 0)) == NULL)
-		return 0;
-
-	for (count = 0; log_read_entry(NULL, fp); count++)
-		;
-
-	log_count = count;
-
-	fclose(fp);
-
-	if (!count)
-		return 0; // normal cfg files will return here
-
-	if (log_entries != NULL)   // Allocate the array and fill it in
-		free(log_entries);
-	if ((log_entries = (log_entry*)malloc(count * sizeof(log_entry))) == NULL)
-		return 0;
-
-	if ((fp = open_file(file, "", 0)) == NULL)
-		return 0;
-	for (i = 0; i < count; i++)
-		log_read_entry(&log_entries[i], fp);
-
-	fclose(fp);
-
-	return 1;
-}
-
-/**
- * Open the logfile for appending and add the current image. Reset position if
- * reset_pos is 1.
- */
-int log_update(char* file, int reset_pos)
-{
-	char s[512], p[256];
-	FILE* fp;
-	man_calc_struct* m = &main_man_calc_struct;
-
-	if (fopen_s(&fp, file, "at")) // open for append
-	{
-		sprintf_s(s, sizeof(s), "Could not open '%s' for write.", file);
-		MessageBox(NULL, s, NULL, MB_OK | MB_ICONSTOP | MB_TASKMODAL);
-		return 0;
-	}
-
-	// For palette, use either number (for builtin palette), or "file" for user 
-	// file.
-	if (m->palette < num_palettes)
-		sprintf_s(p, sizeof(p), "%d", m->palette);
-	else
-		sprintf_s(p, sizeof(p), "\"%s\"", pal_file);
-
-	if (m->pal_xor) // add palette modification if it's in effect - v1.07
-	{
-		sprintf_s(s, sizeof(s), "\npal_xor 0x%06X", m->pal_xor);
-		fputs(s, fp);
-	}
-	// Logfile read function ignores any leading items
-	sprintf_s(s, sizeof(s),
-		"\nReal    %-16.16lf"
-		"\nImag    %-16.16lf"
-		"\nMag     %-16lf"
-		"\nIters   %d"
-		"\nPalette %s\n",
-		m->re, m->im, m->mag, m->max_iters, p);
-
-	fputs(s, fp);
-	fclose(fp);
-
-	// Now reread the logfile (need to reallocate array) - a bit inefficient 
-	// but who cares...
-	// Keep current position
-	return log_read(file, "", reset_pos);
-}
-
-/**
- * Get the next or prev entry from the log entry array. Returns the entry.
- */
-log_entry* log_get(int next_prevn)
-{
-	log_entry* e;
-	man_calc_struct* m = &main_man_calc_struct;
-
-	if (log_entries == NULL)
-		return NULL;
-
-	if (next_prevn)
-	{
-		if (++log_pos > log_count - 1)
-			// log_pos = log_count - 1;	// stop at end
-			log_pos = 0;				// wrap to beginning
-	}
-	else
-		if (--log_pos < 0)
-			// log_pos = 0;				// stop at beginning
-			log_pos = log_count - 1;	// wrap to end
-
-	e = &log_entries[log_pos];
-
-	m->re = e->re;
-	m->im = e->im;
-	m->mag = e->mag;
-	m->max_iters = e->max_iters;
-	if (!(m->status & STAT_PALETTE_LOCKED))
-		m->palette = e->palette;
-
-	return e;
-}
-
-/**
- * Call this early, before the main window is initialized- could change window
- * size.
- */
-void read_cfg_file(void)
-{
-	man_calc_struct* m = &main_man_calc_struct;
-
-	// The cfg file is just another logfile, but it shouldn't have any images 
-	// in it. If it does, the settings will be reset after each image.
-	//
-	// This file will update the values in the cfg_settings structure. If it's 
-	// missing, the default settings in the structure will be used.
-
-	invalidate_settings(&cfg_cur); // initialize all to "no change"
-
-	// NULL = no error message on failure to read
-	log_read(CFG_FILE, NULL, 1);
-
-	// 1 = copy to default_val also
-	copy_changed_settings(&cfg, &cfg_cur, 1);
-
-	// maybe eliminate these separate variables later
-	m->xsize = prev_xsize = cfg.xsize.c_val;
-	m->ysize = prev_ysize = cfg.ysize.c_val;
-
-	// just so 1st dialog box doesn't get div by 0
-	m->min_dimension = m->xsize > m->ysize ? m->ysize : m->xsize;
-	m->max_iters_color = cfg.max_iters_color.c_val;
-}
+static logging logging_struct = {
+	.entries = NULL,
+	.pos = 0,
+	.count = 0
+};
 
 /**
  * Find all files ending in .pal and .bmp and add them to the palette dropdown
@@ -1893,12 +1518,30 @@ void combobox_init(HWND hwnd, int idc)
 }
 
 /**
+ * Get palette number from drop down list.
+ * Returns the palette number, or -1 if no palette was found.
+ */
+int get_pallete_number(char* pal_name)
+{
+	int pal_num;
+	man_calc_struct* m = &main_man_calc_struct;
+
+	pal_num = (int)SendDlgItemMessage(hwnd_dialog, IDC_PALETTE, 
+		CB_FINDSTRINGEXACT, m->num_palettes - 1, (LPARAM)pal_name);
+
+	//_RPTN(_CRT_WARN, "get_pallete_number [name: %s, val: %d]\n", 
+	//	pal_name, pal_num);
+	return pal_num;
+}
+
+/**
  * Returns 1 if palette is one of the builtins, else 0
  */
 int get_builtin_palette(void)
 {
 	int tmp, sz = NUM_ELEM(palette_strs);
 	char str[256];
+	logging* log = &logging_struct;
 	man_calc_struct* m = &main_man_calc_struct;
 
 	GetDlgItemText(hwnd_dialog, IDC_PALETTE, str, sizeof(str));
@@ -1908,6 +1551,7 @@ int get_builtin_palette(void)
 		m->palette = tmp;
 		return 1;
 	}
+
 	return 0;
 }
 
@@ -1918,26 +1562,34 @@ int get_builtin_palette(void)
 void get_user_palette(void)
 {
 	FILE* fp;
-	unsigned int tmp, bmp_flag;
+	char str[256];
+	unsigned int tmp, mode;
 	man_calc_struct* m = &main_man_calc_struct;
 
-	GetDlgItemText(hwnd_dialog, IDC_PALETTE, pal_file, sizeof(pal_file));
+	GetDlgItemText(hwnd_dialog, IDC_PALETTE, m->pal_file, sizeof(m->pal_file));
 
 	// See whether it's a BMP or text palette file; load using corresponding 
 	// function. This is safe because files have to have 3-char extensions to 
 	// make it into the dropdown list.
-	bmp_flag = !_strnicmp(pal_file + strlen(pal_file) - 3, "bmp", 3);
+	mode = !_strnicmp(m->pal_file + strlen(m->pal_file) - 3, "bmp", 3);
 
-	if ((fp = open_file(pal_file, "", bmp_flag)) != NULL)
+	if (fopen_s(&fp, m->pal_file, mode ? "rb" : "rt"))
 	{
-		tmp = bmp_flag ? load_palette_from_bmp(fp, m) : load_palette(fp, m);
+		sprintf_s(str, sizeof(str), "Could not open '%s' for read.", m->pal_file);
+		MessageBox(NULL, str, "Warning", MB_OK | MB_ICONWARNING | MB_TASKMODAL);
+	}
+	else
+	{
+		tmp = mode ? load_palette_from_bmp(fp, m) : load_palette(fp, m);
 
 		if (tmp) // load_palette* assigns a nonzero number to the palette
-			m->palette = tmp;	// if valid, which can then be used with 
-								// apply_palette.
+		{
+			m->palette = get_pallete_number(m->pal_file);
+			//_RPTN(_CRT_WARN, "get_user_palette [num: %d]\n", m->palette);
+		}
 		else
 		{
-			MessageBox(NULL, bmp_flag
+			MessageBox(NULL, mode
 				? "Unsupported file format. "
 				  "Please supply an uncompressed 24-bit bitmap."
 				: "Unrecognized file format.",
@@ -2038,6 +1690,7 @@ void print_status_line(int calc)
 {
 	char s[128];
 	man_calc_struct* m = &main_man_calc_struct;
+	logging* log = &logging_struct;
 
 	// if currently saving, keep saving status in first part of line
 	if (!(m->status & STAT_DOING_SAVE))
@@ -2048,7 +1701,7 @@ void print_status_line(int calc)
 		SetWindowText(hwnd_status_1, s);
 	}
 
-	sprintf_s(s, sizeof(s), "%d/%d  %c", log_pos + 1, log_count,
+	sprintf_s(s, sizeof(s), "%d/%d  %c", log->pos + 1, log->count,
 		m->precision == PRECISION_SINGLE
 		? 'S' : m->precision == PRECISION_DOUBLE ? 'D' : 'E');
 
@@ -2340,8 +1993,8 @@ void resize_window()
 		if (cfg.xsize.c_val < MIN_SIZE)
 			toggle_fullscreen();
 		else if (cfg.ysize.c_val >= MIN_SIZE && // ignore any restoring ysize = 0
-				(cfg.xsize.c_val != prev_xsize ||
-				 cfg.ysize.c_val != prev_ysize))
+				(cfg.xsize.c_val != m->prev_xsize ||
+				 cfg.ysize.c_val != m->prev_ysize))
 		{
 			// Without this, you can change the size of a maximized window, 
 			// which puts it into a bad state (can't resize)
@@ -2354,8 +2007,8 @@ void resize_window()
 			// not sure why this is necessary. Sizes get out of sync?
 			UpdateWindow(hwnd_main);
 
-			prev_xsize = cfg.xsize.c_val;	// Save previous size
-			prev_ysize = cfg.ysize.c_val;	// Can't do this in create_bitmap
+			m->prev_xsize = cfg.xsize.c_val;	// Save previous size
+			m->prev_ysize = cfg.ysize.c_val;	// Can't do this in create_bitmap
 		}
 	}
 	else if (cfg.ysize.c_val < MIN_SIZE)
@@ -2770,6 +2423,7 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	static int new_file_entered = 0;
 	static int new_file_selected = 0;
 	int tab_spacing = 26; // dialog box units
+	logging* log = &logging_struct;
 	log_entry* e;
 	man_calc_struct* m = &main_man_calc_struct;
 
@@ -2932,10 +2586,6 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			// Reset to base image coordinates; deliberate fallthru
 			set_home_image(m);
 			SetDlgItemInt(hwnd_dialog, IDC_ITERS, m->max_iters, FALSE);
-
-			// only do this on home or log next/prev, not recalculation
-			autoreset_settings(&cfg);
-
 			resize_window();
 		}
 		case ID_CALCULATE:
@@ -2959,7 +2609,7 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case ID_LOG_NEXT:
 		{
 			// Get the current filename
-			GetDlgItemText(hwnd, IDC_LOGFILE, log_file, sizeof(log_file));
+			GetDlgItemText(hwnd, IDC_LOGFILE, log->file, sizeof(log->file));
 
 			// If it's new, read it. If it was a newly entered filename, add it 
 			// to the list.
@@ -2967,14 +2617,17 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			{
 				if (LOWORD(wParam) != ID_LOG_IMAGE)
 				{
-					log_read(log_file, "", 1);	// read logfile into array
+					if (log_read(log, 1))	// read logfile into array
+					{
+						m->calc_time = 0.0;	// for benchmarking
+					}
 
 					// for testing load-balancing alg
 					reset_thread_load_counters(m);
 				}
 				if (new_file_entered)
 					SendDlgItemMessage(hwnd, IDC_LOGFILE, CB_ADDSTRING, 0,
-						(LPARAM)log_file);
+						(LPARAM)log->file);
 			}
 			if (LOWORD(wParam) == ID_LOG_IMAGE)
 			{
@@ -2984,7 +2637,17 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				update_re_im(m, m->pan_xoffs, m->pan_yoffs);
 
 				// reset pos if new file
-				log_update(log_file, new_file_entered | new_file_selected);
+				if (log_update(m, log, new_file_entered | new_file_selected))
+				{
+					if (new_file_entered | new_file_selected)
+						m->calc_time = 0.0;
+				}
+				else
+				{
+					char s[256];
+					sprintf_s(s, sizeof(s), "Could not open '%s' for write.", log->file);
+					MessageBox(NULL, s, NULL, MB_OK | MB_ICONSTOP | MB_TASKMODAL);
+				}
 
 				// update current/total number of log images
 				print_status_line(0);
@@ -2997,22 +2660,23 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 			// If user wants a new log image...
 			if ((LOWORD(wParam) == ID_LOG_NEXT || LOWORD(wParam == ID_LOG_PREV)) 
-				&& log_count)
+				&& log->count)
 			{
-				// Autoreset any previous settings that need it
-				autoreset_settings(&cfg);
-
 				// Clear any pan offsets (no need to update re/im as they are 
 				// reset from logfile)
 				m->pan_xoffs = 0;
 				m->pan_yoffs = 0;
 
 				// get next/prev image from logfile array
-				if ((e = log_get(LOWORD(wParam) == ID_LOG_NEXT)) == NULL)
+				if ((e = get_log_entry(m, log, LOWORD(wParam) == ID_LOG_NEXT)) == NULL)
 					return TRUE;
 
-				// Update any new settings: 0 = don't copy to default_val
-				copy_changed_settings(&cfg, &e->log_settings, 0);
+				if (e->pal_name[0] != 0)
+				{
+					// If not found, set to default palette number.
+					int num = get_pallete_number(e->pal_name);
+					e->palette = m->palette = num != CB_ERR ? num : DEFAULT_PAL;
+				}
 
 				// Update sliders, info box, iters, and palette
 				setup_sliders();
@@ -3035,11 +2699,11 @@ man_dialog_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					m->pal_xor = cfg.pal_xor.c_val;
 					m->max_iters_color = cfg.max_iters_color.c_val;
 
-					SendDlgItemMessage(hwnd, IDC_PALETTE, CB_SETCURSEL,
+					SendDlgItemMessage(hwnd, IDC_PALETTE, CB_SETCURSEL, 
 						m->palette, 0);
 
 					// if user palette, read it in
-					if (m->palette >= num_palettes)
+					if (m->palette >= m->num_palettes)
 						get_user_palette();
 				}
 
@@ -3629,6 +3293,7 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow)
 	MSG msg;
 	WNDCLASSEX wndclass;
 	static char* classname = "ManWin";
+	logging* log = &logging_struct;
 	man_calc_struct* m = &main_man_calc_struct;
 	man_calc_struct* s = &save_man_calc_struct;
 
@@ -3642,7 +3307,13 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow)
 
 	// Read any default settings from quickman.cfg. Do this early, because it 
 	// can change almost anything used below.
-	read_cfg_file();
+	if (!cfg_init(m, &cfg, CFG_FILE))
+	{
+		MessageBox(NULL,
+			"Did you extract all the files from the QuickMAN .zip archive?",
+			"Warning", MB_OK | MB_ICONWARNING | MB_TASKMODAL);
+	}
+
 	get_cpu_info();
 	get_system_metrics();
 	man_init();
@@ -3656,7 +3327,7 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow)
 			return 0;
 	}
 
-	if (!(num_palettes = init_palettes(m, DIVERGED_THRESH)))
+	if (!(m->num_palettes = init_palettes(m, DIVERGED_THRESH)))
 		return 0;
 
 	// create a window class for our main window
@@ -3715,8 +3386,13 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow)
 	add_user_palettes_and_logfiles();
 
 	// Read logfile - add_user_palettes() must be called before this
-	log_read(LOG_FILE,
-		"\nDid you extract all the files from the QuickMAN .zip archive?", 1);
+	if (!log_init(log))
+	{
+		MessageBox(NULL,
+			"Did you extract all the files from the QuickMAN .zip archive?",
+			"Warning", MB_OK | MB_ICONWARNING | MB_TASKMODAL);
+	}
+	
 	fancy_intro(); // Zoom in to home image
 
 	while (1) // Main loop
